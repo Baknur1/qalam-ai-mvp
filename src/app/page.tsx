@@ -26,7 +26,7 @@ export default function Home() {
   const [fileSize, setFileSize] = useState('10.5 mb');
   const [activeMode, setActiveMode] = useState<'file' | 'text'>('file');
   const [activeTabInHero, setActiveTabInHero] = useState<'file' | 'text'>('file');
-  const [currentLang, setCurrentLang] = useState<OutputLanguage>('en');
+  const [currentLang, setCurrentLang] = useState<OutputLanguage>('ru');
 
   const timersRef = useRef<NodeJS.Timeout[]>([]);
 
@@ -101,10 +101,11 @@ export default function Home() {
           setLogStep(2); // shows '...fact checking'
 
           // Staggered reveal of Fact Checking cards
-          const tCard1 = setTimeout(() => setVisibleFactCards(1), 250);
-          const tCard2 = setTimeout(() => setVisibleFactCards(2), 500);
-          const tCard3 = setTimeout(() => setVisibleFactCards(3), 750);
-          timersRef.current.push(tCard1, tCard2, tCard3);
+          const tCard1 = setTimeout(() => setVisibleFactCards(1), 200);
+          const tCard2 = setTimeout(() => setVisibleFactCards(2), 400);
+          const tCard3 = setTimeout(() => setVisibleFactCards(3), 600);
+          const tCard4 = setTimeout(() => setVisibleFactCards(4), 800);
+          timersRef.current.push(tCard1, tCard2, tCard3, tCard4);
 
           // Phase 3: Lead Draft Streaming begins
           const tDraft = setTimeout(() => {
@@ -169,10 +170,11 @@ export default function Home() {
         const tFact = setTimeout(() => {
           setDemoPhase('factchecking');
           setLogStep(2);
-          const tCard1 = setTimeout(() => setVisibleFactCards(1), 200);
-          const tCard2 = setTimeout(() => setVisibleFactCards(2), 450);
-          const tCard3 = setTimeout(() => setVisibleFactCards(3), 700);
-          timersRef.current.push(tCard1, tCard2, tCard3);
+          const tCard1 = setTimeout(() => setVisibleFactCards(1), 150);
+          const tCard2 = setTimeout(() => setVisibleFactCards(2), 350);
+          const tCard3 = setTimeout(() => setVisibleFactCards(3), 550);
+          const tCard4 = setTimeout(() => setVisibleFactCards(4), 750);
+          timersRef.current.push(tCard1, tCard2, tCard3, tCard4);
 
           const tDraft = setTimeout(() => {
             setDemoPhase('drafting');
@@ -287,18 +289,18 @@ export default function Home() {
               }}
             />
 
-            {/* 2-Column Section: Fact checking & Lead Draft (ends on the same height) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            {/* 2-Column Section: Fact checking & Lead Draft */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               {/* Left Column: Fact checking */}
-              <div className="lg:col-span-4 w-full flex flex-col h-full">
+              <div className="lg:col-span-4 w-full flex flex-col">
                 <FactCheckingSection
                   isLoading={isFactCheckingLoading}
-                  visibleCardsCount={visibleFactCards}
+                  visibleCardsCount={demoPhase === 'ready' ? 4 : visibleFactCards}
                 />
               </div>
 
               {/* Right Column: Lead Draft */}
-              <div className="lg:col-span-8 w-full flex flex-col h-full">
+              <div className="lg:col-span-8 w-full flex flex-col">
                 <LeadDraftSection
                   draftText={fullDraftText}
                   isLoading={isDraftLoading}

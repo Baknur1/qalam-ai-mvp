@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Volume2, AlertCircle, CheckCircle2, AlertTriangle, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Volume2, AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FlagDecision } from '@/lib/types';
 
@@ -34,15 +34,45 @@ interface FactCheckingSectionProps {
 export function FactCheckingSection({
   onDecision,
   isLoading = false,
-  visibleCardsCount = 3
+  visibleCardsCount = 4
 }: FactCheckingSectionProps) {
   // Interactive decision state for each card
   const [decisions, setDecisions] = useState<Record<string, FlagDecision>>({
     'fc-1': 'approved',
     'fc-2': 'pending',
-    'fc-3': 'pending'
+    'fc-3': 'pending',
+    'fc-4': 'pending'
   });
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+
+  // Close tooltip when clicking on empty space/outside or pressing Escape
+  useEffect(() => {
+    if (!activeTooltip) return;
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('[data-fact-tooltip]')) {
+        return;
+      }
+      setActiveTooltip(null);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setActiveTooltip(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeTooltip]);
 
   const handleBtnClick = (id: string, btn: 'decline' | 'approve') => {
     const targetDecision: FlagDecision = btn === 'decline' ? 'declined' : 'approved';
@@ -59,7 +89,7 @@ export function FactCheckingSection({
     }
   };
 
-  // 3 distinct, realistic journalistic mock scenarios
+  // 4 distinct, realistic journalistic mock scenarios
   const CARDS: FactCheckCardData[] = [
     {
       id: 'fc-1',
@@ -117,24 +147,43 @@ export function FactCheckingSection({
       },
       defaultDeclineRed: false,
       defaultApproveGreen: false
+    },
+    {
+      id: 'fc-4',
+      time: '2:45',
+      speaker: 'Dastan Sadykov',
+      textBefore: 'Under the revised tax provisions, ',
+      underlinedPhrase: 'tax exemptions',
+      textMid: ' will be applied to ',
+      highlightedFact: '100% of awarded grant funds',
+      textAfter: ' for all regional editorial staff and local contractors.',
+      factCheckInfo: {
+        type: 'discrepancy',
+        title: 'Налогообложение грантовых средств',
+        claimed: '100% освобождение от налогов всех полученных грантов',
+        verified: 'Согласно ст. 289 НК РК, грант освобождается от КПН, однако выплаты физлицам облагаются ИПН (10%) и соцналогом.',
+        source: 'Налоговый кодекс РК (ст. 289, 319) и разъяснение КГД МФ РК'
+      },
+      defaultDeclineRed: false,
+      defaultApproveGreen: false
     }
   ];
 
   return (
-    <div className="flex flex-col w-full h-full select-none">
+    <div className="flex flex-col w-full select-none">
       {/* Title */}
       <h2 className="text-[28px] font-normal text-white mb-5 tracking-tight h-8 flex items-center">
         Fact checking
       </h2>
 
-      {/* 3 Cards or Skeleton */}
-      <div className="flex flex-col gap-4 flex-1 justify-between">
+      {/* Cards list with max height and clean vertical scroll without any horizontal overflow */}
+      <div className="flex flex-col gap-4 max-h-[820px] overflow-y-auto overflow-x-hidden pr-1 sm:pr-1.5 pb-8">
         {isLoading ? (
-          /* 3 Skeleton Cards */
-          [1, 2, 3].map((idx) => (
+          /* 4 Skeleton Cards */
+          [1, 2, 3, 4].map((idx) => (
             <div
               key={idx}
-              className="flex-1 rounded-[20px] bg-[#121214] border border-[#2a2a2a] flex flex-col justify-between overflow-hidden animate-pulse"
+              className="shrink-0 rounded-[20px] bg-[#121214] border border-[#2a2a2a] flex flex-col justify-between overflow-hidden animate-pulse h-48"
             >
               <div className="p-5 flex flex-col gap-3">
                 <div className="flex items-center gap-2.5">
@@ -164,9 +213,11 @@ export function FactCheckingSection({
             return (
               <div
                 key={card.id}
-                className="flex-1 rounded-[20px] bg-[#121214] border border-[#2a2a2a] flex flex-col justify-between relative hover:z-30 focus-within:z-30 transition-all"
+                className={`shrink-0 rounded-[20px] bg-[#121214] border border-[#2a2a2a] flex flex-col relative transition-all ${
+                  activeTooltip === card.id ? 'z-40' : 'hover:z-30 focus-within:z-30'
+                }`}
               >
-                {/* Top content area matching Figma Image 4 */}
+                {/* Top content area */}
                 <div className="p-5 sm:p-6 flex flex-col gap-3.5">
                   {/* Speaker timecode badge + speaker name */}
                   <div className="flex items-center gap-3">
@@ -189,7 +240,10 @@ export function FactCheckingSection({
                     )}
                     {card.textMid}
                     {/* Combined fact check pill with hover tooltip and click toggle */}
-                    <span className="relative group inline-block align-baseline">
+                    <span
+                      data-fact-tooltip={card.id}
+                      className="relative group inline-block align-baseline"
+                    >
                       <button
                         type="button"
                         onClick={(e) => {
@@ -201,12 +255,12 @@ export function FactCheckingSection({
                         {card.highlightedFact}
                       </button>
 
-                      {/* Tooltip on hover or click */}
+                      {/* Tooltip on hover or click - positioned below (top-full mt-2.5) to prevent top clipping in scroll container */}
                       <div
-                        className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 sm:w-80 p-3.5 rounded-xl bg-[#1c1c20] border border-[#38383e] shadow-2xl transition-all duration-200 z-50 text-left ${
+                        className={`absolute top-full left-1/2 -translate-x-1/2 mt-2.5 w-72 sm:w-80 p-3.5 rounded-xl bg-[#1c1c20] border border-[#38383e] shadow-2xl transition-all duration-200 z-50 text-left ${
                           activeTooltip === card.id
-                            ? 'opacity-100 pointer-events-auto'
-                            : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto'
+                            ? 'opacity-100 pointer-events-auto visible'
+                            : 'opacity-0 pointer-events-none invisible group-hover:opacity-100 group-hover:pointer-events-auto group-hover:visible'
                         }`}
                       >
                         <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#2b2b32]">
@@ -243,8 +297,8 @@ export function FactCheckingSection({
                             Источник: {card.factCheckInfo.source}
                           </div>
                         </div>
-                        {/* Tooltip triangle arrow */}
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] border-4 border-transparent border-t-[#38383e]" />
+                        {/* Tooltip triangle arrow pointing up towards pill */}
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-[#38383e]" />
                       </div>
                     </span>
                     {card.textAfter}

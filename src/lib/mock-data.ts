@@ -109,23 +109,34 @@ export const MOCK_PIPELINE_RESULT: PipelineResult = {
   transcript: MOCK_TRANSCRIPT,
   outputs: {
     ru: {
-      web_article: `## В Казахстане выделили 500 млн тенге на развитие региональных цифровых редакций
+      web_article: `## В Казахстане выделили 500 млн тенге на цифровую трансформацию региональных редакций
 
-В Службе центральных коммуникаций прошел брифинг, посвященный новым мерам стимулирования региональной журналистики. Государство запускает целевую грантовую программу для независимых малых медиа и районных редакций.
+В Службе центральных коммуникаций прошел межведомственный брифинг, посвященный новым государственным механизмам стимулирования независимой региональной журналистики. В рамках пилотного проекта государство запускает целевую грантовую программу для малых редакций и районных медиа-коллективов, переходящих на современные цифровые форматы.
 
-### Ключевые условия программы
+Как сообщил на брифинге представитель ведомства **Канат Ыскаков**, совокупный бюджет пилотного раунда составит **500 млн тенге**. Финансирование будет распределяться на конкурсной основе среди малых медиакоманд (до 10 сотрудников), развивающих цифровые платформы, журналистские расследования и локальные мультимедийные спецпроекты.
 
-Как сообщил на брифинге представитель ведомства Канат Ыскаков, общий бюджет пилотного раунда составит **500 млн тенге**. Средства будут выделяться на конкурсной основе небольшим редакциям (до 10 сотрудников), развивающим цифровые платформы, расследовательские проекты и мультимедийный контент.
+> «Мы осознаем масштаб экономических вызовов, с которыми сталкиваются локальные журналисты в условиях сжатия регионального рекламного рынка. Гранты призваны сохранить редакционную независимость медиа на местах и стимулировать создание качественного контента на казахском и русском языках», — подчеркнул спикер.
 
-> «Мы понимаем сложность работы региональных журналистов в условиях сжатия рекламного рынка. Гранты призваны поддержать редакции, создающие качественный локальный контент на казахском и русском языках», — отметил спикер.
+### Структура грантового фонда и лимиты финансирования
 
-### Сроки и порядок подачи заявок
+Финансовая комиссия разделила общий бюджет на четыре ключевых проектных направления:
 
-* **Прием заявок:** продлится до **15 ноября 2026 года**.
-* **Отбор проектов:** независимая комиссия с участием представителей медиа-НПО.
-* **Куратор программы:** Министерство культуры и информации РК.
+| Направление гранта | Лимит на редакцию | Срок реализации | Приоритет отбора |
+| :--- | :--- | :--- | :--- |
+| Цифровизация и веб-платформы | до 25 000 000 ₸ | 12 месяцев | Высокий |
+| Мультимедийные расследования | до 15 000 000 ₸ | 6 месяцев | Высокий |
+| Дата-журналистика и фактчекинг | до 10 000 000 ₸ | 8 месяцев | Средний |
+| Модернизация районных газет | до 8 000 000 ₸ | 12 месяцев | Базовый |
 
-*Редакция обращает внимание: утверждение спикера о «покрытии дефицита для 80% изданий» носит оценочный характер — по оценкам медиа-юристов, конкурсный отбор сможет удовлетворить порядка 35–40% поступивших заявок.*`,
+### Ключевые требования к участникам конкурса
+
+1. **Штатная численность:** не более 10 постоянных штатных сотрудников на дату подачи заявки.
+2. **Опыт работы:** не менее 12 месяцев непрерывной медийной деятельности в регионах Казахстана.
+3. **Прозрачность отчетности:** обязательная регулярная публикация финансового аудита целевого расходования средств.
+4. **Сроки подачи документов:** прием конкурсных заявок открыт строго до **15 ноября 2026 года** (до 18:00 по времени Астаны).
+
+> ⚠️ **Аналитическая справка фактчекинг-отдела Qalam AI:**
+> Заявление спикера о «стопроцентном покрытии дефицита для 80% районных изданий» носит сугубо оценочный характер. Согласно официальной бюджетной росписи №412, прямой объем грантов составит **480 млн тенге** (20 млн тенге заморожены в стабилизационном резерве). По расчетам отраслевых экспертов, конкурс сможет удовлетворить порядка 35–42% поданных заявок.`,
 
       telegram_post: `⚡️ **500 млн тенге направят на гранты для региональных медиа Казахстана**
 
@@ -166,21 +177,32 @@ export const MOCK_PIPELINE_RESULT: PipelineResult = {
     kz: {
       web_article: `## Қазақстанда өңірлік цифрлық редакцияларды қолдауға 500 млн теңге бөлінді
 
-Орталық коммуникациялар қызметінде (ОКҚ) өңірлік журналистиканы ынталандырудың жаңа тетіктеріне арналған баспасөз брифингі өтті. Мемлекет шағын тәуелсіз медиа мен аудандық басылымдар үшін арнайы гранттық бағдарламаны іске қосуда.
+Орталық коммуникациялар қызметінде (ОКҚ) өңірлік тәуелсіз журналистиканы ынталандыру мен дамытудың жаңа мемлекеттік тетіктеріне арналған баспасөз брифингі өтті. Бағдарлама аясында заманауи цифрлық форматтарға көшіп жатқан шағын редакциялар мен аудандық басылымдар үшін арнайы гранттық қор іске қосылуда.
 
-### Бағдарламаның негізгі шарттары
+Брифинг барысында ведомство өкілі **Қанат Ысқақовтың** мәлімдеуінше, жобаның бастапқы кезеңіне арналған жалпы бюджет **500 млн теңгені** құрайды. Қаржы цифрлық платформаларды, журналистік зерттеулер мен жергілікті мультимедианы дамытып отырған шағын редакцияларға (10 қызметкерге дейін) ашық байқау негізінде беріледі.
 
-Брифинг барысында ведомство өкілі Қанат Ысқақовтың мәлімдеуінше, жобаның бастапқы кезеңіне арналған жалпы бюджет **500 млн теңгені** құрайды. Қаражат цифрлық платформаларды, зерттеу материалдары мен мультимедианы дамытып отырған шағын редакцияларға (10 қызметкерге дейін) ашық байқау негізінде беріледі.
+> «Біз өңірлік журналистердің жарнама нарығының тарылуы жағдайындағы қиындықтарын жақсы түсінеміз. Бұл гранттар қазақ және орыс тілдерінде сапалы жергілікті контент шығаратын редакцияларды қолдауға және олардың дербестігін сақтауға бағытталған», — деп атап өтті спикер.
 
-> «Біз өңірлік журналистердің жарнама нарығының тарылуы жағдайындағы қиындықтарын жақсы түсінеміз. Бұл гранттар қазақ және орыс тілдерінде сапалы жергілікті контент шығаратын редакцияларды қолдауға бағытталған», — деп атап өтті спикер.
+### Гранттық қордың құрылымы мен қаржыландыру лимиттері
 
-### Өтінім қабылдау мерзімі мен тәртібі
+Сараптамалық комиссия жалпы бюджетті төрт негізгі бағыт бойынша бекітті:
 
-* **Құжаттарды қабылдау:** **2026 жылғы 15 қарашаға дейін** жалғасады.
-* **Жобаларды іріктеу:** құрамына медиа саласындағы ҮЕҰ мен тәуелсіз сарапшылар кіретін комиссия арқылы өтеді.
-* **Бағдарлама кураторы:** ҚР Мәдениет және ақпарат министрлігі.
+| Грант бағыты | Редакция лимиті | Іске асыру мерзімі | Басымдық деңгейі |
+| :--- | :--- | :--- | :--- |
+| Цифрлық платформалар мен веб-жүйелер | 25 000 000 ₸ дейін | 12 ай | Жоғары |
+| Мультимедиалық зерттеу материалдары | 15 000 000 ₸ дейін | 6 ай | Жоғары |
+| Дата-журналистика және фактчекинг бөлімдері | 10 000 000 ₸ дейін | 8 ай | Орташа |
+| Аудандық басылымдарды жаңғырту | 8 000 000 ₸ дейін | 12 ай | Базалық |
 
-*Редакция ескертпесі: спикердің «аудандық басылымдардың 80%-ын қамтимыз» деген мәлімдемесіне күмән бар — медиа-сарапшылардың пікірінше, бұл қаржы түскен өтінімдердің тек 35–40%-ын ғана жабуға жетеді.*`,
+### Қатысушыларға қойылатын негізгі талаптар
+
+1. **Штат саны:** өтінім беру сәтінде 10 тұрақты қызметкерден аспауы тиіс.
+2. **Жұмыс тәжірибесі:** Қазақстан өңірлерінде кемінде 12 ай үздіксіз медиа қызметінің болуы.
+3. **Ашық есептілік:** қаралған қаражаттың мақсатты жұмсалуы бойынша тоқсан сайынғы аудиторлық есепті жариялау.
+4. **Құжат қабылдау мерзімі:** өтінімдер қабылдау қатаң түрде **2026 жылғы 15 қарашаға дейін** (Астана уақытымен 18:00-ге дейін) жүргізіледі.
+
+> ⚠️ **Qalam AI фактчекинг қызметінің анықтамасы:**
+> Спикердің «аудандық басылымдардың 80%-ын толық қамтимыз» деген мәлімдемесі асыра бағаланған. №412 ресми бюджеттік кестеге сәйкес тікелей грант көлемі **480 млн теңгені** құрайды (20 млн теңге тұрақтандыру резервінде сақталған). Сарапшылардың есебі бойынша грант түскен өтінімдердің 35–42%-ын ғана қамти алады.`,
 
       telegram_post: `⚡️ **Қазақстанда өңірлік медиаға 500 млн теңге көлемінде грант бөлінеді**
 
@@ -219,23 +241,34 @@ export const MOCK_PIPELINE_RESULT: PipelineResult = {
 «Бұл бейнені сақтап, журналист әріптестеріңізбен бөлісіңіз. Толық шарттар — профильдегі сілтемеде!»`
     },
     en: {
-      web_article: `## Kazakhstan Allocates 500M KZT to Support Regional Digital Media
+      web_article: `## Kazakhstan Allocates 500M KZT to Drive Digital Transformation for Regional Newsrooms
 
-At a central press briefing in Astana, government officials unveiled new funding initiatives aimed at sustaining independent local journalism. The pilot program provides direct grant aid to small digital newsrooms and district publications navigating digital transformation.
+At a high-profile press briefing in Astana, government officials unveiled comprehensive funding mechanisms aimed at sustaining independent local journalism. The initiative launches a direct grant program supporting small digital newsrooms and district publications navigating digital transformation and market shifts.
 
-### Program Core Guidelines
+According to Vice-Minister **Kanat Yskakov**, the pilot funding pool totals **500 million tenge**. The capital will be competitively awarded to small editorial teams (up to 10 staff) producing regional investigative reporting, local multimedia coverage, and bilingual public interest journalism.
 
-According to Vice-Minister Kanat Yskakov, the program features a **500 million tenge** initial funding pool. The grants target small editorial teams (up to 10 staff) producing investigative reporting, local multimedia coverage, and bilingual news.
+> "We recognize the severe economic pressures local newsrooms face with declining advertising revenues. These grants are tailored to empower independent reporters producing high-impact regional reporting across both Kazakh and Russian languages," the speaker highlighted.
 
-> "We recognize the economic pressure local newsrooms face with declining advertising revenues. These grants are tailored to empower independent reporters producing high-impact regional reporting," the speaker stated.
+### Grant Allocation Framework & Financial Limits
 
-### Timeline & Selection Protocol
+The evaluation committee has established four priority funding tiers based on editorial scope and institutional readiness:
 
-* **Submission Deadline:** Open through **November 15, 2026**.
-* **Review Committee:** Evaluated by an independent board of media NGO leaders and investigative journalists.
-* **Overseeing Authority:** Ministry of Culture and Information of the Republic of Kazakhstan.
+| Grant Category | Cap per Newsroom | Project Duration | Priority Level |
+| :--- | :--- | :--- | :--- |
+| Digital Platforms & Infrastructure | up to 25,000,000 ₸ | 12 months | High |
+| Investigative & In-depth Multimedia | up to 15,000,000 ₸ | 6 months | High |
+| Data Journalism & Fact-Checking Units | up to 10,000,000 ₸ | 8 months | Medium |
+| Rural Newspaper Digital Modernization | up to 8,000,000 ₸ | 12 months | Baseline |
 
-*Editorial Fact-Check Note: The ministry's pledge to "fully cover 80% of regional media revenue deficits" is an aspirational estimate. Media law analysts calculate that the allocated funds will likely fulfill 35–40% of qualifying applications.*`,
+### Key Eligibility Guidelines & Submission Protocol
+
+1. **Staff Threshold:** Teams must have no more than 10 permanent staff members at the time of application.
+2. **Operational Track Record:** Minimum 12 months of continuous editorial operations in regional areas.
+3. **Public Accountability:** Mandatory quarterly reporting on viewership metrics and fund utilization.
+4. **Submission Window:** Applications remain open strictly until **November 15, 2026** (18:00 AST).
+
+> ⚠️ **Qalam AI Fact-Checking Intelligence Note:**
+> The ministry's pledge to "fully cover revenue deficits for 80% of regional media outlets" is an aspirational estimate. Official budget allocation registry #412 confirms direct disbursements at **480 million tenge** (20M KZT held in contingency reserve). Media economists project that the initiative will cover approximately 35–42% of qualified applicants.`,
 
       telegram_post: `⚡️ **500M KZT Grants Launched for Independent Regional Media in Kazakhstan**
 

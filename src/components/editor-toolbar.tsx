@@ -30,6 +30,9 @@ import {
   Check
 } from 'lucide-react';
 
+import { OutputLanguage } from '@/lib/types';
+import { TRANSLATIONS } from '@/lib/translations';
+
 interface EditorToolbarProps {
   editor?: Editor | null;
   onFormat?: (command: string) => void;
@@ -39,6 +42,7 @@ interface EditorToolbarProps {
   onToggleRawMode?: () => void;
   onSave?: () => void;
   isSaved?: boolean;
+  currentLang?: OutputLanguage;
 }
 
 export function EditorToolbar({
@@ -47,8 +51,10 @@ export function EditorToolbar({
   isPreviewMode = false,
   onTogglePreview,
   isRawMode = false,
-  onToggleRawMode
+  onToggleRawMode,
+  currentLang = 'ru'
 }: EditorToolbarProps) {
+  const t = TRANSLATIONS[currentLang]?.leadDraft || TRANSLATIONS.ru.leadDraft;
   // Dropdown / Popover states
   const [activeMenu, setActiveMenu] = useState<
     'heading' | 'palette' | 'more-styles' | 'lists' | 'align' | 'link' | 'more-elements' | null
@@ -859,7 +865,7 @@ export function EditorToolbar({
         <button
           type="button"
           onClick={onTogglePreview}
-          title={isPreviewMode ? 'Перейти в режим редактирования текста' : 'Посмотреть готовый отформатированный материал'}
+          title={isPreviewMode ? t.editTooltip : t.previewTooltip}
           className={`h-full px-5 sm:px-6 flex items-center gap-2 text-xs font-normal transition-colors cursor-pointer select-none rounded-tr-[20px] ${
             isPreviewMode
               ? 'text-neutral-300 hover:text-white hover:bg-white/[0.04]'
@@ -869,12 +875,12 @@ export function EditorToolbar({
           {isPreviewMode ? (
             <>
               <Edit3 className="w-3.5 h-3.5 text-neutral-300" />
-              <span>Редактировать</span>
+              <span>{t.editBtn}</span>
             </>
           ) : (
             <>
               <FileSearch className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Предпросмотр</span>
+              <span>{t.previewBtn}</span>
             </>
           )}
         </button>

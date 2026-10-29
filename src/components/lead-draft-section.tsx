@@ -8,9 +8,15 @@ import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table
 import { Link } from '@tiptap/extension-link';
 import { Underline } from '@tiptap/extension-underline';
 import { TextAlign } from '@tiptap/extension-text-align';
+import { Extension } from '@tiptap/core';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { Markdown } from 'tiptap-markdown';
 import MarkdownIt from 'markdown-it';
 import { EditorToolbar } from './editor-toolbar';
+import { FactCheckItem, FactStatus, OutputLanguage } from '@/lib/types';
+import { FACT_CHECK_ITEMS } from '@/lib/fact-checking-data';
+import { TRANSLATIONS } from '@/lib/translations';
 
 const mdParser = new MarkdownIt({
   html: true,
@@ -19,12 +25,141 @@ const mdParser = new MarkdownIt({
   breaks: true
 });
 
+const factHighlightPluginKey = new PluginKey('factHighlightPlugin');
+
+interface FactHighlightState {
+  facts: FactCheckItem[];
+  decisions: Record<string, FactStatus>;
+  lang: OutputLanguage;
+  hoveredId: string | null;
+  selectedId: string | null;
+}
+
+const FactHighlightExtension = Extension.create({
+  name: 'factHighlight',
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: factHighlightPluginKey,
+        state: {
+          init(): FactHighlightState {
+            return {
+              facts: [],
+              decisions: {},
+              lang: 'ru',
+              hoveredId: null,
+              selectedId: null
+            };
+          },
+          apply(tr, value): FactHighlightState {
+            const meta = tr.getMeta(factHighlightPluginKey) as FactHighlightState | undefined;
+            if (meta) return meta;
+            return value;
+          }
+        },
+        props: {
+          decorations(state) {
+            const pluginState = factHighlightPluginKey.getState(state) as FactHighlightState | undefined;
+            const currentFacts = pluginState?.facts || [];
+            const currentDecisions = pluginState?.decisions || {};
+            const lang = pluginState?.lang || 'ru';
+            const hoveredId = pluginState?.hoveredId ?? null;
+            const selectedId = pluginState?.selectedId ?? null;
+
+            if (!currentFacts || currentFacts.length === 0) return DecorationSet.empty;
+
+            const decorations: Decoration[] = [];
+            const doc = state.doc;
+
+            doc.descendants((node, pos) => {
+              if (node.isText && node.text) {
+                const text = node.text;
+                const textLower = text.toLowerCase();
+
+                for (const card of currentFacts) {
+                  const phrases = [
+                    card.targetPhrases?.[lang],
+                    card.targetPhrases?.ru,
+                    card.targetPhrases?.en,
+                    card.targetPhrases?.kz,
+                    card.highlightedFact
+                  ].filter(Boolean) as string[];
+
+                  const unique = Array.from(new Set(phrases));
+                  for (const phrase of unique) {
+                    if (!phrase || phrase.length < 3) continue;
+                    const phraseLower = phrase.toLowerCase();
+                    let startIdx = 0;
+                    while ((startIdx = textLower.indexOf(phraseLower, startIdx)) !== -1) {
+                      const from = pos + startIdx;
+                      const to = from + phrase.length;
+                      const status = currentDecisions[card.id] || 'pending';
+                      const isHovered = hoveredId === card.id;
+                      const isSelected = selectedId === card.id;
+
+                      // Show outline (border) in editing state
+                      let borderClass =
+                        'border border-amber-500/60 bg-amber-500/10 text-amber-200';
+                      if (status === 'approved') {
+                        borderClass =
+                          'border border-emerald-500/60 bg-emerald-500/10 text-emerald-200';
+                      } else if (status === 'fixed') {
+                        borderClass =
+                          'border border-sky-500/60 bg-sky-500/10 text-sky-200';
+                      } else if (status === 'declined') {
+                        borderClass =
+                          'border border-red-500/60 bg-red-500/10 text-red-300 line-through';
+                      }
+
+                      if (isHovered || isSelected) {
+                        borderClass += ' border-amber-400 text-white';
+                      }
+
+                      decorations.push(
+                        Decoration.inline(from, to, {
+                          class: `fact-outline inline-block rounded px-1.5 py-0.5 mx-0.5 transition-all ${borderClass}`,
+                          'data-fact-id': card.id
+                        })
+                      );
+                      startIdx += phrase.length;
+                    }
+                  }
+                }
+              }
+            });
+
+            decorations.sort((a, b) => a.from - b.from);
+
+            const nonOverlapping: Decoration[] = [];
+            let lastTo = -1;
+            for (const dec of decorations) {
+              if (dec.from >= lastTo) {
+                nonOverlapping.push(dec);
+                lastTo = dec.to;
+              }
+            }
+
+            return DecorationSet.create(doc, nonOverlapping);
+          }
+        }
+      })
+    ];
+  }
+});
+
 interface LeadDraftSectionProps {
   draftText: string;
   isLoading?: boolean;
   isStreaming?: boolean;
   streamedText?: string;
   onSaveDraft?: (newText: string) => void;
+  hoveredFactId?: string | null;
+  onHoverFact?: (factId: string | null) => void;
+  selectedFactId?: string | null;
+  onSelectFact?: (factId: string | null) => void;
+  facts?: FactCheckItem[];
+  decisions?: Record<string, FactStatus>;
+  currentLang?: OutputLanguage;
 }
 
 export function LeadDraftSection({
@@ -32,14 +167,27 @@ export function LeadDraftSection({
   isLoading = false,
   isStreaming = false,
   streamedText = '',
-  onSaveDraft
+  onSaveDraft,
+  hoveredFactId,
+  onHoverFact,
+  selectedFactId,
+  onSelectFact,
+  facts = FACT_CHECK_ITEMS,
+  decisions = {},
+  currentLang = 'ru'
 }: LeadDraftSectionProps) {
   // PREVIEW BY DEFAULT: User immediately sees the formatted publication
   const [isPreviewMode, setIsPreviewMode] = useState(true);
   const [isRawMode, setIsRawMode] = useState(false);
   const [content, setContent] = useState(draftText);
+  const [prevDraftText, setPrevDraftText] = useState(draftText);
   const previewScrollRef = useRef<HTMLDivElement>(null);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  if (!isStreaming && draftText !== prevDraftText) {
+    setPrevDraftText(draftText);
+    setContent(draftText);
+  }
 
   // Debounced auto-save function
   const triggerAutoSave = (newText: string) => {
@@ -81,13 +229,15 @@ export function LeadDraftSection({
         html: true,
         transformPastedText: true,
         transformCopiedText: true
-      })
+      }),
+      FactHighlightExtension
     ],
     content: mdParser.render(draftText || ''),
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class: 'tiptap focus:outline-none min-h-[420px] text-base sm:text-[16px] text-neutral-200 leading-[1.75]'
+        class:
+          'tiptap focus:outline-none min-h-[420px] text-base sm:text-[16px] text-neutral-200 leading-[1.75]'
       }
     },
     onUpdate: ({ editor: currentEditor }) => {
@@ -98,26 +248,36 @@ export function LeadDraftSection({
     }
   });
 
-  // Sync draftText when props change (language switch or demo finish)
+  // Sync draftText with editor when props change (language switch or demo finish or auto-fix applied)
   useEffect(() => {
-    if (draftText && !isStreaming) {
-      setContent(draftText);
-      if (editor) {
-        editor.commands.setContent(mdParser.render(draftText));
-      }
+    if (draftText && !isStreaming && editor) {
+      editor.commands.setContent(mdParser.render(draftText));
     }
   }, [draftText, isStreaming, editor]);
 
-  // Synchronize content to editor when entering edit mode
+  // Keep plugin state updated and trigger decoration re-render
+  useEffect(() => {
+    if (editor && !editor.isDestroyed) {
+      editor.view.dispatch(
+        editor.state.tr.setMeta(factHighlightPluginKey, {
+          facts,
+          decisions,
+          lang: currentLang,
+          hoveredId: hoveredFactId,
+          selectedId: selectedFactId
+        })
+      );
+    }
+  }, [facts, decisions, currentLang, hoveredFactId, selectedFactId, editor]);
+
+  // Synchronize content to editor when toggling preview/edit
   const handleTogglePreview = () => {
     if (isPreviewMode) {
-      // Transition from Preview -> Edit
       if (editor) {
         editor.commands.setContent(mdParser.render(content));
       }
       setIsPreviewMode(false);
     } else {
-      // Transition from Edit -> Preview
       if (editor) {
         // @ts-expect-error tiptap-markdown storage
         const md = editor.storage?.markdown?.getMarkdown?.() || content;
@@ -137,11 +297,116 @@ export function LeadDraftSection({
     }
   };
 
-  // Rendered HTML for preview mode or streaming
+  // Rendered HTML for preview mode or streaming with cross-component fact highlights
+  // In preview mode: NO boxes/rings, NO checkmarks, NO 'ФАКТ' labels.
+  // Only bottom-border in the corresponding color.
   const displayedContent = isStreaming ? streamedText : content;
+
   const renderedHtml = useMemo(() => {
-    return mdParser.render(displayedContent || '');
-  }, [displayedContent]);
+    let html = mdParser.render(displayedContent || '');
+    if (!facts || facts.length === 0) return html;
+
+    facts.forEach((card) => {
+      const status = decisions[card.id] || 'pending';
+      const isHovered = hoveredFactId === card.id;
+      const isSelected = selectedFactId === card.id;
+
+      // Collect target phrases for current and alternative languages
+      const phraseList = [
+        card.targetPhrases?.[currentLang],
+        card.targetPhrases?.ru,
+        card.targetPhrases?.en,
+        card.targetPhrases?.kz,
+        card.highlightedFact
+      ].filter(Boolean) as string[];
+
+      const uniquePhrases = Array.from(new Set(phraseList));
+
+      for (const phrase of uniquePhrases) {
+        if (!phrase || phrase.length < 3) continue;
+
+        // Escape regex special chars
+        const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Match occurrences inside HTML text (avoiding tags)
+        const regex = new RegExp(`(?<!<[^>]*)(${escaped})(?![^<]*>)`, 'gi');
+
+        if (regex.test(html)) {
+          let styleClasses = '';
+
+          if (isHovered || isSelected) {
+            if (status === 'approved') {
+              styleClasses =
+                'border-b-2 border-emerald-400 bg-emerald-500/10 text-white font-medium pb-0.5';
+            } else if (status === 'fixed') {
+              styleClasses =
+                'border-b-2 border-sky-400 bg-sky-500/10 text-white font-medium pb-0.5';
+            } else if (status === 'declined') {
+              styleClasses =
+                'border-b-2 border-red-400 bg-red-500/10 text-neutral-300 line-through pb-0.5';
+            } else {
+              styleClasses =
+                'border-b-2 border-amber-400 bg-amber-500/15 text-white font-medium pb-0.5';
+            }
+          } else if (status === 'approved') {
+            styleClasses = 'border-b-2 border-emerald-400 pb-0.5 text-inherit';
+          } else if (status === 'fixed') {
+            styleClasses = 'border-b-2 border-sky-400 pb-0.5 text-inherit';
+          } else if (status === 'declined') {
+            styleClasses = 'border-b-2 border-red-400 pb-0.5 line-through text-neutral-400';
+          } else {
+            styleClasses =
+              'border-b-2 border-dashed border-amber-400/80 pb-0.5 text-inherit hover:border-amber-300';
+          }
+
+          html = html.replace(
+            regex,
+            `<span data-fact-id="${card.id}" class="inline-block cursor-pointer transition-all ${styleClasses}">$1</span>`
+          );
+          break; // Match first occurrence for this card
+        }
+      }
+    });
+
+    return html;
+  }, [displayedContent, facts, decisions, hoveredFactId, selectedFactId, currentLang]);
+
+  // Click & hover event delegation on preview container
+  const handleContainerClick = (e: React.MouseEvent) => {
+    const target = (e.target as HTMLElement).closest('[data-fact-id]');
+    if (target) {
+      const factId = target.getAttribute('data-fact-id');
+      if (factId && onSelectFact) {
+        onSelectFact(factId);
+      }
+    }
+  };
+
+  const handleContainerMouseOver = (e: React.MouseEvent) => {
+    const target = (e.target as HTMLElement).closest('[data-fact-id]');
+    if (target) {
+      const factId = target.getAttribute('data-fact-id');
+      if (factId && onHoverFact) {
+        onHoverFact(factId);
+      }
+    }
+  };
+
+  const handleContainerMouseOut = (e: React.MouseEvent) => {
+    const target = (e.target as HTMLElement).closest('[data-fact-id]');
+    if (target && onHoverFact) {
+      onHoverFact(null);
+    }
+  };
+
+  // Scroll target fact into view when selectedFactId changes
+  useEffect(() => {
+    if (selectedFactId && previewScrollRef.current) {
+      const el = previewScrollRef.current.querySelector(`[data-fact-id="${selectedFactId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [selectedFactId]);
 
   // Auto-scroll to bottom during streaming
   useEffect(() => {
@@ -153,9 +418,11 @@ export function LeadDraftSection({
   return (
     <div className="flex flex-col w-full select-none">
       {/* Title */}
-      <h2 className="text-[28px] font-normal text-white mb-5 tracking-tight h-8 flex items-center">
-        Lead Draft
-      </h2>
+      <div className="flex items-center justify-between mb-5 h-8">
+        <h2 className="text-[28px] font-normal text-white tracking-tight flex items-center gap-2">
+          <span>{TRANSLATIONS[currentLang]?.leadDraft.title || 'Lead Draft'}</span>
+        </h2>
+      </div>
 
       {/* Container with top toolbar - Height matched to 820px to align with Fact Checking */}
       <div className="h-[820px] rounded-[20px] bg-[#121214] border border-[#2a2a2a] flex flex-col relative">
@@ -166,12 +433,16 @@ export function LeadDraftSection({
           onTogglePreview={handleTogglePreview}
           isRawMode={isRawMode}
           onToggleRawMode={() => setIsRawMode(!isRawMode)}
+          currentLang={currentLang}
         />
 
         {/* Content Area */}
         <div
           ref={previewScrollRef}
-          className="flex-1 p-6 sm:p-7 overflow-y-auto overflow-x-hidden rounded-b-[20px]"
+          onClick={handleContainerClick}
+          onMouseOver={handleContainerMouseOver}
+          onMouseOut={handleContainerMouseOut}
+          className="flex-1 p-6 sm:p-7 overflow-y-auto overflow-x-hidden rounded-b-[20px] scrollbar-thin scrollbar-thumb-neutral-800"
         >
           {isLoading ? (
             /* Skeleton State */
@@ -197,11 +468,11 @@ export function LeadDraftSection({
               rows={22}
               value={content}
               onChange={handleRawChange}
-              placeholder="Введите или отредактируйте Markdown код..."
+              placeholder={TRANSLATIONS[currentLang]?.leadDraft.rawPlaceholder || 'Введите или отредактируйте Markdown код...'}
               className="w-full h-full bg-transparent border-0 outline-none resize-none text-sm sm:text-base font-mono text-neutral-300 leading-[1.75] placeholder:text-neutral-600"
             />
           ) : isPreviewMode || isStreaming ? (
-            /* Preview Mode & Streaming Mode (Unified Rich Styling) */
+            /* Preview Mode & Streaming Mode (Unified Rich Styling with Fact Highlights) */
             <div className="relative text-base sm:text-[16px] text-neutral-200 leading-[1.75]">
               <div
                 className="tiptap select-text"

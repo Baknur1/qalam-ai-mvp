@@ -3,24 +3,47 @@
 import React, { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { MultilingualOutputs, ContentFormat, OutputLanguage } from '@/lib/types';
+import {
+  MultilingualOutputs,
+  ContentFormat,
+  OutputLanguage,
+  FactCheckItem,
+  FactStatus
+} from '@/lib/types';
+import { TRANSLATIONS } from '@/lib/translations';
 
 interface MultiPlatformExportProps {
   outputs: MultilingualOutputs;
   isLoading?: boolean;
   isStreaming?: boolean;
   streamedText?: string;
+  facts?: FactCheckItem[];
+  decisions?: Record<string, FactStatus>;
+  onSelectFact?: (factId: string) => void;
+  currentLang?: OutputLanguage;
 }
 
 export function MultiPlatformExport({
   outputs,
   isLoading = false,
   isStreaming = false,
-  streamedText = ''
+  streamedText = '',
+  currentLang = 'ru'
 }: MultiPlatformExportProps) {
   const [activeFormat, setActiveFormat] = useState<'post' | 'telegram' | 'scenario'>('post');
-  const [activeLang, setActiveLang] = useState<OutputLanguage>('en');
+  const [selectedLang, setSelectedLang] = useState<OutputLanguage | null>(null);
+  const [prevCurrentLang, setPrevCurrentLang] = useState(currentLang);
   const [copied, setCopied] = useState(false);
+
+  if (prevCurrentLang !== currentLang) {
+    setPrevCurrentLang(currentLang);
+    setSelectedLang(null);
+  }
+
+  const activeLang = selectedLang ?? currentLang;
+  const setActiveLang = (lang: OutputLanguage) => setSelectedLang(lang);
+
+  const t = TRANSLATIONS[currentLang]?.exportSection || TRANSLATIONS.ru.exportSection;
 
   const formatMap: Record<'post' | 'telegram' | 'scenario', ContentFormat> = {
     post: 'web_article',
@@ -34,7 +57,13 @@ export function MultiPlatformExport({
   const handleCopy = () => {
     navigator.clipboard.writeText(currentText);
     setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const formatLabels: Record<'post' | 'telegram' | 'scenario', string> = {
+    post: t.tabPost,
+    telegram: t.tabTelegram,
+    scenario: t.tabScenario
   };
 
   if (isLoading) {
@@ -42,7 +71,7 @@ export function MultiPlatformExport({
       <div className="flex flex-col w-full mt-10 select-none animate-pulse">
         {/* Title */}
         <h2 className="text-2xl font-normal text-white mb-5 tracking-tight">
-          Multi-platform export
+          {t.title}
         </h2>
 
         {/* Skeleton Control Bar */}
@@ -67,18 +96,18 @@ export function MultiPlatformExport({
     <div className="flex flex-col w-full mt-10 select-none">
       {/* Title */}
       <h2 className="text-[28px] font-normal text-white mb-5 tracking-tight">
-        Multi-platform export
+        {t.title}
       </h2>
 
-      {/* Control Bar exactly matching Figma with smooth sliding pill transitions */}
+      {/* Control Bar with smooth sliding pill transitions */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
         {/* Left: Post | Telegram | Scenario */}
         <div className="flex items-center rounded-full bg-[#1e1e1e] border border-[#2e2e2e] p-[3px] relative">
           {(
             [
-              { id: 'post', label: 'Post' },
-              { id: 'telegram', label: 'Telegram' },
-              { id: 'scenario', label: 'Scenario' }
+              { id: 'post', label: formatLabels.post },
+              { id: 'telegram', label: formatLabels.telegram },
+              { id: 'scenario', label: formatLabels.scenario }
             ] as const
           ).map((item) => (
             <motion.button
@@ -145,12 +174,12 @@ export function MultiPlatformExport({
         </div>
       </div>
 
-      {/* Finished Export Box designed in the exact same style as Lead Draft */}
+      {/* Finished Export Box */}
       <div className="rounded-[20px] bg-[#121214] border border-[#2a2a2a] flex flex-col min-h-[340px] overflow-hidden">
         {/* Top header row with thin horizontal divider */}
         <div className="h-13 px-6 sm:px-7 border-b border-[#222225] flex items-center justify-between text-sm text-neutral-400">
-          <span className="text-sm text-neutral-400 font-normal capitalize">
-            {activeFormat} • {activeLang.toUpperCase()}
+          <span className="text-sm text-neutral-400 font-normal">
+            {formatLabels[activeFormat]} • {activeLang.toUpperCase()}
           </span>
 
           <button
@@ -161,12 +190,12 @@ export function MultiPlatformExport({
             {copied ? (
               <>
                 <Check className="w-4 h-4 text-emerald-400" />
-                <span className="text-emerald-400">Copied</span>
+                <span className="text-emerald-400">{t.copied}</span>
               </>
             ) : (
               <>
                 <Copy className="w-4 h-4" />
-                <span>Copy</span>
+                <span>{t.copy}</span>
               </>
             )}
           </button>
@@ -179,30 +208,46 @@ export function MultiPlatformExport({
               const trimmed = block.trim();
               if (trimmed.startsWith('## ')) {
                 return (
-                  <h3 key={idx} className="text-xl sm:text-[22px] font-semibold text-white pt-2 pb-1">
+                  <h3
+                    key={idx}
+                    className="text-xl sm:text-[22px] font-semibold text-white pt-2 pb-1"
+                  >
                     {trimmed.replace(/^##\s+/, '')}
                   </h3>
                 );
               }
               if (trimmed.startsWith('### ')) {
                 return (
-                  <h4 key={idx} className="text-base sm:text-lg font-semibold text-neutral-200 pt-2">
+                  <h4
+                    key={idx}
+                    className="text-base sm:text-lg font-semibold text-neutral-200 pt-2"
+                  >
                     {trimmed.replace(/^###\s+/, '')}
                   </h4>
                 );
               }
               if (trimmed.startsWith('> ')) {
                 return (
-                  <blockquote key={idx} className="border-l-2 border-neutral-600 pl-4 text-neutral-400 italic my-2 text-[15px] sm:text-base leading-relaxed">
+                  <blockquote
+                    key={idx}
+                    className="border-l-2 border-neutral-600 pl-4 text-neutral-400 italic my-2 text-[15px] sm:text-base leading-relaxed"
+                  >
                     {trimmed.replace(/^>\s+/, '').replace(/\*\*(.*?)\*\*/g, '$1')}
                   </blockquote>
                 );
               }
               return (
-                <p key={idx} className="text-base sm:text-[16px] text-neutral-200 leading-[1.75] whitespace-pre-line">
+                <p
+                  key={idx}
+                  className="text-base sm:text-[16px] text-neutral-200 leading-[1.75] whitespace-pre-line"
+                >
                   {trimmed.split(/(\*\*.*?\*\*)/g).map((part, pIdx) => {
                     if (part.startsWith('**') && part.endsWith('**')) {
-                      return <strong key={pIdx} className="font-semibold text-white">{part.slice(2, -2)}</strong>;
+                      return (
+                        <strong key={pIdx} className="font-semibold text-white">
+                          {part.slice(2, -2)}
+                        </strong>
+                      );
                     }
                     return part;
                   })}

@@ -14,7 +14,13 @@
     background-color: #0b0b0b;
     color: #ffffff;
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Desktop / Tablet compact mode (zoom: 0.9 centered) */
+@media (min-width: 641px) {
+  html {
+    zoom: 0.9;
   }
 }
 
@@ -26,7 +32,6 @@
 
 html, body {
   overflow-x: hidden;
-  max-width: 100vw;
 }
 
 ::-webkit-scrollbar-track {

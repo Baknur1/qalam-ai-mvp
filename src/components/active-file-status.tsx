@@ -4,6 +4,9 @@ import React from 'react';
 import { FileText, X, Check, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import { OutputLanguage } from '@/lib/types';
+import { TRANSLATIONS } from '@/lib/translations';
+
 interface ActiveFileStatusProps {
   fileName: string;
   fileSize: string;
@@ -12,6 +15,7 @@ interface ActiveFileStatusProps {
   activeMode?: 'file' | 'text';
   onModeChange?: (mode: 'file' | 'text') => void;
   logStep?: number; // 0 (uploading) to 4 (ready)
+  currentLang?: OutputLanguage;
 }
 
 export function ActiveFileStatus({
@@ -21,13 +25,16 @@ export function ActiveFileStatus({
   onReset,
   activeMode = 'file',
   onModeChange,
-  logStep = 4
+  logStep = 4,
+  currentLang = 'ru'
 }: ActiveFileStatusProps) {
+  const t = TRANSLATIONS[currentLang]?.activeFile || TRANSLATIONS.ru.activeFile;
+
   const LOGS = [
-    { step: 1, text: '...file decryption' },
-    { step: 2, text: '...fact checking' },
-    { step: 3, text: '...generating a draft post' },
-    { step: 4, text: '...generating a post for social networks' }
+    { step: 1, text: t.logs[0] },
+    { step: 2, text: t.logs[1] },
+    { step: 3, text: t.logs[2] },
+    { step: 4, text: t.logs[3] }
   ];
 
   return (
@@ -57,7 +64,7 @@ export function ActiveFileStatus({
               activeMode === 'file' ? 'text-white font-normal' : 'text-neutral-400'
             }`}
           >
-            File
+            {t.tabFile}
           </span>
         </motion.button>
 
@@ -81,7 +88,7 @@ export function ActiveFileStatus({
               activeMode === 'text' ? 'text-white font-normal' : 'text-neutral-400'
             }`}
           >
-            Text
+            {t.tabText}
           </span>
         </motion.button>
       </div>

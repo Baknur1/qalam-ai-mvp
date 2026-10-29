@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { OutputLanguage } from '@/lib/types';
+import { TRANSLATIONS } from '@/lib/translations';
 
 interface HeaderProps {
   onTriggerDemo?: () => void;
@@ -55,8 +56,8 @@ export function Header({
   };
 
   return (
-    <header className="w-full bg-[#0b0b0b] pt-8 sm:pt-10 pb-4 px-8 sm:px-16 lg:px-24 xl:px-32 relative select-none">
-      <div className="max-w-[1400px] mx-auto flex items-center justify-between relative min-h-[48px]">
+    <header className="w-full bg-[#0b0b0b] pt-8 sm:pt-10 pb-4 relative select-none">
+      <div className="w-full max-w-[1520px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between relative min-h-[48px]">
         {/* Left spacer to keep center logo strictly centered */}
         <div className="w-24 sm:w-64 hidden sm:block" />
 
@@ -132,7 +133,9 @@ export function Header({
                 : 'border border-[#9E9E9E] bg-transparent hover:bg-white/5 text-white'
             }`}
           >
-            {isDemoActive ? 'Exit demo' : 'Demo mode'}
+            {isDemoActive
+              ? TRANSLATIONS[currentLang]?.header.exitDemo || 'Exit demo'
+              : TRANSLATIONS[currentLang]?.header.demoMode || 'Demo mode'}
           </motion.button>
         </div>
       </div>

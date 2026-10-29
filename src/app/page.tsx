@@ -10,8 +10,6 @@ import { MultiPlatformExport } from '@/components/multi-platform-export';
 import { MOCK_PIPELINE_RESULT } from '@/lib/mock-data';
 import { PipelineResult, OutputLanguage, FactStatus, QuickFixType } from '@/lib/types';
 import { FACT_CHECK_ITEMS } from '@/lib/fact-checking-data';
-import { Volume2, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 type DemoPhase =
   | 'idle'
@@ -47,22 +45,11 @@ export default function Home() {
   });
   const [hoveredFactId, setHoveredFactId] = useState<string | null>(null);
   const [selectedFactId, setSelectedFactId] = useState<string | null>(null);
-  const [activeAudioPreview, setActiveAudioPreview] = useState<{
-    time: string;
-    speaker: string;
-    text: string;
-  } | null>(null);
-
   const timersRef = useRef<NodeJS.Timeout[]>([]);
-  const audioTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const clearAllTimers = () => {
     timersRef.current.forEach((t) => clearTimeout(t));
     timersRef.current = [];
-    if (audioTimerRef.current) {
-      clearTimeout(audioTimerRef.current);
-      audioTimerRef.current = null;
-    }
   };
 
   useEffect(() => {
@@ -74,15 +61,6 @@ export default function Home() {
     pipelineData.outputs.en?.web_article ||
     pipelineData.outputs.ru?.web_article ||
     '';
-
-  // Handle Play Timecode snippet
-  const handlePlayAudioTimecode = (item: { time: string; speaker: string; text: string }) => {
-    setActiveAudioPreview(item);
-    if (audioTimerRef.current) clearTimeout(audioTimerRef.current);
-    audioTimerRef.current = setTimeout(() => {
-      setActiveAudioPreview(null);
-    }, 4500);
-  };
 
   // Handle Quick Fix Action (Apply AI, Footnote, Remove)
   const handleQuickFix = (factId: string, fixType: QuickFixType) => {
@@ -364,7 +342,6 @@ export default function Home() {
     setIsProcessing(false);
     setSelectedFactId(null);
     setHoveredFactId(null);
-    setActiveAudioPreview(null);
   };
 
   // State calculations for sub-components
@@ -381,63 +358,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0b0b0b] text-white relative">
-      {/* Animated Timecode Audio Player Floating Toast */}
-      <AnimatePresence>
-        {activeAudioPreview && (
-          <motion.div
-            initial={{ opacity: 0, y: -20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            className="fixed top-20 right-6 z-50 bg-[#141419] border border-amber-500/50 shadow-2xl rounded-2xl p-4 w-80 sm:w-96 text-white backdrop-blur-md"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
-                  <Volume2 className="w-4 h-4 animate-bounce" />
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
-                    <span>Воспроизведение таймкода [{activeAudioPreview.time}]</span>
-                  </div>
-                  <p className="text-[11px] text-neutral-300 mt-0.5 font-medium">
-                    Спикер: {activeAudioPreview.speaker}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveAudioPreview(null)}
-                className="text-neutral-400 hover:text-white p-1"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Simulated Animated Equalizer Bars */}
-            <div className="mt-3 flex items-center justify-between px-2 py-1.5 rounded-lg bg-black/40 border border-neutral-800">
-              <div className="flex items-center gap-1 h-5">
-                {[4, 12, 18, 8, 14, 20, 10, 16, 22, 6, 15, 9, 18, 12, 6].map((h, i) => (
-                  <motion.span
-                    key={i}
-                    className="w-1 bg-gradient-to-t from-amber-500 to-amber-300 rounded-full"
-                    animate={{ height: [`${h * 0.4}px`, `${h}px`, `${h * 0.3}px`] }}
-                    transition={{
-                      repeat: Infinity,
-                      duration: 0.6 + (i % 5) * 0.1,
-                      ease: 'easeInOut'
-                    }}
-                  />
-                ))}
-              </div>
-              <span className="text-[10px] font-mono text-amber-400 animate-pulse">0:42 / 2:48</span>
-            </div>
-            <p className="text-[11px] text-neutral-400 mt-2 italic line-clamp-1">
-              «{activeAudioPreview.text}»
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Header matching Figma */}
       <Header
         onTriggerDemo={() => handleProcess({ useMock: true, mode: activeTabInHero })}
@@ -489,8 +409,6 @@ export default function Home() {
                   onHoverFact={setHoveredFactId}
                   selectedFactId={selectedFactId}
                   onSelectFact={setSelectedFactId}
-                  activeAudioTimecode={activeAudioPreview?.time || null}
-                  onPlayAudioTimecode={handlePlayAudioTimecode}
                   isLoading={isFactCheckingLoading}
                   visibleCardsCount={demoPhase === 'ready' ? 4 : visibleFactCards}
                   currentLang={currentLang}

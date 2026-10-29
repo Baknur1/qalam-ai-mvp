@@ -97,27 +97,37 @@ const FactHighlightExtension = Extension.create({
                       const isHovered = hoveredId === card.id;
                       const isSelected = selectedId === card.id;
 
-                      // Show outline (border) in editing state
-                      let borderClass =
-                        'border border-amber-500/60 bg-amber-500/10 text-amber-200';
-                      if (status === 'approved') {
-                        borderClass =
-                          'border border-emerald-500/60 bg-emerald-500/10 text-emerald-200';
-                      } else if (status === 'fixed') {
-                        borderClass =
-                          'border border-sky-500/60 bg-sky-500/10 text-sky-200';
-                      } else if (status === 'declined') {
-                        borderClass =
-                          'border border-red-500/60 bg-red-500/10 text-red-300 line-through';
-                      }
-
+                      // Clean underline styling matching Figma design system (no blocky badges)
+                      let underlineClass = '';
                       if (isHovered || isSelected) {
-                        borderClass += ' border-amber-400 text-white';
+                        if (status === 'approved') {
+                          underlineClass =
+                            'border-b-2 border-emerald-400 bg-emerald-500/10 text-white font-medium pb-0.5';
+                        } else if (status === 'fixed') {
+                          underlineClass =
+                            'border-b-2 border-sky-400 bg-sky-500/10 text-white font-medium pb-0.5';
+                        } else if (status === 'declined') {
+                          underlineClass =
+                            'border-b-2 border-red-400 bg-red-500/10 text-neutral-300 line-through pb-0.5';
+                        } else {
+                          underlineClass =
+                            'border-b-2 border-amber-400 bg-amber-500/15 text-white font-medium pb-0.5';
+                        }
+                      } else if (status === 'approved') {
+                        underlineClass = 'border-b-2 border-emerald-400 pb-0.5 text-inherit';
+                      } else if (status === 'fixed') {
+                        underlineClass = 'border-b-2 border-sky-400 pb-0.5 text-inherit';
+                      } else if (status === 'declined') {
+                        underlineClass =
+                          'border-b-2 border-red-400 pb-0.5 line-through text-neutral-400';
+                      } else {
+                        underlineClass =
+                          'border-b-2 border-dashed border-amber-400/80 pb-0.5 text-inherit hover:border-amber-300';
                       }
 
                       decorations.push(
                         Decoration.inline(from, to, {
-                          class: `fact-outline inline-block rounded px-1.5 py-0.5 mx-0.5 transition-all ${borderClass}`,
+                          class: `fact-outline inline transition-colors duration-150 cursor-pointer ${underlineClass}`,
                           'data-fact-id': card.id
                         })
                       );

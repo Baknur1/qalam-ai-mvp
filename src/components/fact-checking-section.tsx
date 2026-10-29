@@ -16,8 +16,6 @@ interface FactCheckingSectionProps {
   onHoverFact?: (flagId: string | null) => void;
   selectedFactId?: string | null;
   onSelectFact?: (flagId: string | null) => void;
-  activeAudioTimecode?: string | null;
-  onPlayAudioTimecode?: (item: { time: string; speaker: string; text: string }) => void;
   isLoading?: boolean;
   visibleCardsCount?: number;
   currentLang?: OutputLanguage;
@@ -32,8 +30,6 @@ export function FactCheckingSection({
   onHoverFact,
   selectedFactId,
   onSelectFact,
-  activeAudioTimecode,
-  onPlayAudioTimecode,
   isLoading = false,
   visibleCardsCount = 4,
   currentLang = 'ru'
@@ -282,8 +278,6 @@ export function FactCheckingSection({
             const isFixed = currentDecision === 'fixed';
             const isDeclined = currentDecision === 'declined';
 
-            const isPlayingAudio = activeAudioTimecode === card.time;
-
             const tCard = card.translations?.[currentLang];
             const speaker = tCard?.speaker || card.speaker;
             const textBefore = tCard?.textBefore ?? card.textBefore;
@@ -328,36 +322,11 @@ export function FactCheckingSection({
                   {/* Speaker timecode badge + speaker name */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5">
-                      {/* Clickable timecode badge with soundwave animation */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (onPlayAudioTimecode) {
-                            onPlayAudioTimecode({
-                              time: card.time,
-                              speaker,
-                              text: highlightedFact
-                            });
-                          }
-                        }}
-                        title={t.listenAudioTitle}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[7px] border text-xs sm:text-[12.5px] transition-all cursor-pointer ${
-                          isPlayingAudio
-                            ? 'bg-amber-500/20 border-amber-400 text-amber-300 ring-2 ring-amber-400/30'
-                            : 'bg-transparent border-[#3e3e3e] text-white hover:border-amber-400 hover:text-amber-300'
-                        }`}
-                      >
-                        {isPlayingAudio ? (
-                          <span className="flex items-center gap-0.5 h-3">
-                            <span className="w-0.5 h-2.5 bg-amber-400 animate-pulse" />
-                            <span className="w-0.5 h-1.5 bg-amber-400 animate-pulse delay-75" />
-                            <span className="w-0.5 h-3 bg-amber-400 animate-pulse delay-150" />
-                          </span>
-                        ) : (
-                          <Volume2 className="w-3.5 h-3.5 text-white" />
-                        )}
+                      {/* Static timecode badge with speaker icon */}
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[7px] border border-[#3e3e3e] text-xs sm:text-[12.5px] text-white bg-transparent select-none">
+                        <Volume2 className="w-3.5 h-3.5 text-neutral-400" />
                         <span>{card.time}</span>
-                      </button>
+                      </div>
 
                       <span className="text-sm sm:text-[15px] font-normal text-white">
                         {speaker}

@@ -79,6 +79,10 @@ export interface TranslationStrings {
     copy: string;
     copied: string;
   };
+  audioPreview: {
+    title: string;
+    speaker: string;
+  };
 }
 
 export const TRANSLATIONS: Record<OutputLanguage, TranslationStrings> = {
@@ -181,6 +185,10 @@ export const TRANSLATIONS: Record<OutputLanguage, TranslationStrings> = {
       tabScenario: 'Сценарий',
       copy: 'Копировать',
       copied: 'Скопировано'
+    },
+    audioPreview: {
+      title: 'Воспроизведение таймкода',
+      speaker: 'Спикер'
     }
   },
   kz: {
@@ -282,6 +290,10 @@ export const TRANSLATIONS: Record<OutputLanguage, TranslationStrings> = {
       tabScenario: 'Сценарий',
       copy: 'Көшіру',
       copied: 'Көшірілді'
+    },
+    audioPreview: {
+      title: 'Таймкодты тыңдау',
+      speaker: 'Спикер'
     }
   },
   en: {
@@ -383,6 +395,10 @@ export const TRANSLATIONS: Record<OutputLanguage, TranslationStrings> = {
       tabScenario: 'Scenario',
       copy: 'Copy',
       copied: 'Copied'
+    },
+    audioPreview: {
+      title: 'Playing timecode',
+      speaker: 'Speaker'
     }
   }
 };

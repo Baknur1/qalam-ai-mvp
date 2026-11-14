@@ -9,6 +9,7 @@ import {
   Italic,
   Palette,
   MoreVertical,
+  MoreHorizontal,
   List,
   AlignLeft,
   AlignCenter,
@@ -55,6 +56,7 @@ export function EditorToolbar({
   currentLang = 'ru'
 }: EditorToolbarProps) {
   const t = TRANSLATIONS[currentLang]?.leadDraft || TRANSLATIONS.ru.leadDraft;
+  const tb = TRANSLATIONS[currentLang]?.editorToolbar || TRANSLATIONS.ru.editorToolbar;
   // Dropdown / Popover states
   const [activeMenu, setActiveMenu] = useState<
     'heading' | 'palette' | 'more-styles' | 'lists' | 'align' | 'link' | 'more-elements' | null
@@ -62,6 +64,9 @@ export function EditorToolbar({
 
   // Link state
   const [linkUrl, setLinkUrl] = useState('');
+
+  // Mobile secondary tools row toggle
+  const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
 
@@ -127,10 +132,12 @@ export function EditorToolbar({
   return (
     <div
       ref={toolbarRef}
-      className="relative h-12 pl-2.5 sm:pl-3 pr-0 border-b border-[#222225] bg-[#121214] rounded-t-[20px] flex items-center justify-between text-neutral-400 select-none overflow-visible z-30"
+      className="relative flex flex-col border-b border-[#222225] bg-[#121214] rounded-t-[20px] text-neutral-400 select-none overflow-visible z-30"
     >
-      {/* Left Formatting Cluster */}
-      <div className="flex items-center gap-0.5 shrink-0 relative">
+      {/* Row 1: Main Toolbar */}
+      <div className="h-12 pl-2.5 sm:pl-3 pr-0 flex items-center justify-between w-full">
+        {/* Left Formatting Cluster */}
+        <div className="flex items-center gap-0.5 shrink-0 relative">
         {/* Clear formatting */}
         <button
           type="button"
@@ -142,7 +149,7 @@ export function EditorToolbar({
               handleAction('clear');
             }
           }}
-          title="Очистить форматирование"
+          title={tb.clearFormatting}
           className="w-7.5 h-7.5 flex items-center justify-center rounded-md hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
         >
           <Eraser className="w-3.5 h-3.5" />
@@ -159,7 +166,7 @@ export function EditorToolbar({
               handleAction('bold');
             }
           }}
-          title="Жирный (Ctrl+B)"
+          title={tb.bold}
           className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer font-bold ${
             isBold ? 'bg-white/20 text-white font-bold' : 'hover:bg-white/10 hover:text-white'
           }`}
@@ -178,7 +185,7 @@ export function EditorToolbar({
               handleAction('italic');
             }
           }}
-          title="Курсив (Ctrl+I)"
+          title={tb.italic}
           className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer italic ${
             isItalic ? 'bg-white/20 text-white' : 'hover:bg-white/10 hover:text-white'
           }`}
@@ -192,7 +199,7 @@ export function EditorToolbar({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => toggleMenu('heading')}
-            title="Стили заголовков"
+            title={tb.headingStyles}
             className={`h-7.5 px-1 flex items-center gap-0.5 rounded-md transition-colors cursor-pointer ${
               activeMenu === 'heading'
                 ? 'bg-white/20 text-white'
@@ -225,7 +232,7 @@ export function EditorToolbar({
                     editor?.isActive('heading', { level: 1 }) ? 'bg-white/15 text-white font-semibold' : ''
                   }`}
                 >
-                  <span className="text-base font-bold text-white">H1 Заголовок</span>
+                  <span className="text-base font-bold text-white">{tb.h1}</span>
                   {editor?.isActive('heading', { level: 1 }) && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                 </button>
 
@@ -240,7 +247,7 @@ export function EditorToolbar({
                     editor?.isActive('heading', { level: 2 }) ? 'bg-white/15 text-white font-semibold' : ''
                   }`}
                 >
-                  <span className="text-sm font-semibold text-white">H2 Подзаголовок</span>
+                  <span className="text-sm font-semibold text-white">{tb.h2}</span>
                   {editor?.isActive('heading', { level: 2 }) && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                 </button>
 
@@ -255,7 +262,7 @@ export function EditorToolbar({
                     editor?.isActive('heading', { level: 3 }) ? 'bg-white/15 text-white font-semibold' : ''
                   }`}
                 >
-                  <span className="text-xs font-semibold text-white">H3 Секция</span>
+                  <span className="text-xs font-semibold text-white">{tb.h3}</span>
                   {editor?.isActive('heading', { level: 3 }) && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                 </button>
 
@@ -272,7 +279,7 @@ export function EditorToolbar({
                     editor?.isActive('paragraph') ? 'bg-white/15 text-white' : ''
                   }`}
                 >
-                  <span>Обычный текст (Paragraph)</span>
+                  <span>{tb.paragraph}</span>
                   {editor?.isActive('paragraph') && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                 </button>
               </motion.div>
@@ -286,7 +293,7 @@ export function EditorToolbar({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => toggleMenu('palette')}
-            title="Цвет маркера / Выделение"
+            title={tb.highlightColor}
             className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
               activeMenu === 'palette'
                 ? 'bg-white/20 text-white'
@@ -305,7 +312,7 @@ export function EditorToolbar({
                 transition={{ duration: 0.12 }}
                 className="absolute top-full left-0 mt-1.5 w-52 rounded-xl bg-[#1c1c20] border border-[#2e2e34] shadow-2xl p-2 flex flex-col gap-1.5 z-50 text-neutral-300 text-xs"
               >
-                <div className="text-[11px] font-medium text-neutral-400 px-1">Редакторские маркеры:</div>
+                <div className="text-[11px] font-medium text-neutral-400 px-1">{tb.editorialMarkers}</div>
                 <div className="grid grid-cols-4 gap-1.5 pt-0.5">
                   {/* Amber */}
                   <button
@@ -315,8 +322,8 @@ export function EditorToolbar({
                       editor?.chain().focus().toggleHighlight({ color: '#f59e0b' }).run();
                       setActiveMenu(null);
                     }}
-                    title="Желтый (Важно)"
-                    className="h-7 rounded-md bg-amber-500/25 border border-amber-500/50 hover:scale-105 transition-transform flex items-center justify-center cursor-pointer"
+                    title={tb.markerYellow}
+                    className="h-7 rounded-md bg-amber-500/25 border border-amber-500/50 hover:brightness-125 transition-all flex items-center justify-center cursor-pointer"
                   >
                     <div className="w-3 h-3 rounded-full bg-amber-400" />
                   </button>
@@ -329,8 +336,8 @@ export function EditorToolbar({
                       editor?.chain().focus().toggleHighlight({ color: '#ef4444' }).run();
                       setActiveMenu(null);
                     }}
-                    title="Красный (Фактчек)"
-                    className="h-7 rounded-md bg-red-500/25 border border-red-500/50 hover:scale-105 transition-transform flex items-center justify-center cursor-pointer"
+                    title={tb.markerRed}
+                    className="h-7 rounded-md bg-red-500/25 border border-red-500/50 hover:brightness-125 transition-all flex items-center justify-center cursor-pointer"
                   >
                     <div className="w-3 h-3 rounded-full bg-red-400" />
                   </button>
@@ -343,8 +350,8 @@ export function EditorToolbar({
                       editor?.chain().focus().toggleHighlight({ color: '#10b981' }).run();
                       setActiveMenu(null);
                     }}
-                    title="Зеленый (Подтверждено)"
-                    className="h-7 rounded-md bg-emerald-500/25 border border-emerald-500/50 hover:scale-105 transition-transform flex items-center justify-center cursor-pointer"
+                    title={tb.markerGreen}
+                    className="h-7 rounded-md bg-emerald-500/25 border border-emerald-500/50 hover:brightness-125 transition-all flex items-center justify-center cursor-pointer"
                   >
                     <div className="w-3 h-3 rounded-full bg-emerald-400" />
                   </button>
@@ -357,8 +364,8 @@ export function EditorToolbar({
                       editor?.chain().focus().toggleHighlight({ color: '#3b82f6' }).run();
                       setActiveMenu(null);
                     }}
-                    title="Синий (Цитата/Источник)"
-                    className="h-7 rounded-md bg-blue-500/25 border border-blue-500/50 hover:scale-105 transition-transform flex items-center justify-center cursor-pointer"
+                    title={tb.markerBlue}
+                    className="h-7 rounded-md bg-blue-500/25 border border-blue-500/50 hover:brightness-125 transition-all flex items-center justify-center cursor-pointer"
                   >
                     <div className="w-3 h-3 rounded-full bg-blue-400" />
                   </button>
@@ -373,20 +380,36 @@ export function EditorToolbar({
                   }}
                   className="w-full text-left px-2 py-1.5 rounded-md hover:bg-white/10 hover:text-white text-[11px] text-neutral-400 mt-1 cursor-pointer"
                 >
-                  ✕ Снять выделение маркером
+                  {tb.removeHighlight}
                 </button>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {/* More styles dropdown (Strikethrough, Underline, Code) */}
+        {/* Mobile 3-Dots Button (Toggles Secondary Row on Mobile) */}
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setIsMobileMoreOpen(!isMobileMoreOpen)}
+          title="Дополнительные инструменты"
+          className={`flex sm:hidden w-7.5 h-7.5 items-center justify-center rounded-md transition-colors cursor-pointer ${
+            isMobileMoreOpen
+              ? 'bg-white/20 text-white'
+              : 'hover:bg-white/10 text-neutral-400 hover:text-white'
+          }`}
+        >
+          <MoreHorizontal className="w-3.5 h-3.5" />
+        </button>
+
+        {/* Desktop Secondary Cluster (Hidden on mobile) */}
+        <div className="hidden sm:flex items-center gap-0.5">
         <div className="relative">
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => toggleMenu('more-styles')}
-            title="Дополнительные стили"
+            title={tb.extraStyles}
             className={`w-5.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
               activeMenu === 'more-styles'
                 ? 'bg-white/20 text-white'
@@ -417,7 +440,7 @@ export function EditorToolbar({
                   }`}
                 >
                   <Strikethrough className="w-3.5 h-3.5" />
-                  <span>Зачеркнутый</span>
+                  <span>{tb.strike}</span>
                 </button>
 
                 <button
@@ -432,7 +455,7 @@ export function EditorToolbar({
                   }`}
                 >
                   <UnderlineIcon className="w-3.5 h-3.5" />
-                  <span>Подчеркнутый</span>
+                  <span>{tb.underline}</span>
                 </button>
 
                 <button
@@ -447,7 +470,7 @@ export function EditorToolbar({
                   }`}
                 >
                   <CodeIcon className="w-3.5 h-3.5" />
-                  <span>Код в строке</span>
+                  <span>{tb.inlineCode}</span>
                 </button>
               </motion.div>
             )}
@@ -463,7 +486,7 @@ export function EditorToolbar({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => toggleMenu('lists')}
-            title="Списки"
+            title={tb.lists}
             className={`h-7.5 px-1 flex items-center gap-0.5 rounded-md transition-colors cursor-pointer ${
               activeMenu === 'lists'
                 ? 'bg-white/20 text-white'
@@ -494,7 +517,7 @@ export function EditorToolbar({
                     isBulletList ? 'bg-white/15 text-white font-medium' : ''
                   }`}
                 >
-                  <span>• Маркированный список</span>
+                  <span>{tb.bulletList}</span>
                   {isBulletList && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                 </button>
 
@@ -509,7 +532,7 @@ export function EditorToolbar({
                     isOrderedList ? 'bg-white/15 text-white font-medium' : ''
                   }`}
                 >
-                  <span>1. Нумерованный список</span>
+                  <span>{tb.orderedList}</span>
                   {isOrderedList && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                 </button>
               </motion.div>
@@ -523,12 +546,12 @@ export function EditorToolbar({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => toggleMenu('align')}
-            title={`Выравнивание текста: ${
+            title={`${tb.alignment}: ${
               currentAlign === 'center'
-                ? 'по центру'
+                ? tb.alignCenter
                 : currentAlign === 'right'
-                ? 'по правому краю'
-                : 'по левому краю'
+                ? tb.alignRight
+                : tb.alignLeft
             }`}
             className={`h-7.5 px-1.5 flex items-center gap-0.5 rounded-md transition-colors cursor-pointer ${
               activeMenu === 'align'
@@ -568,7 +591,7 @@ export function EditorToolbar({
                 >
                   <div className="flex items-center gap-2">
                     <AlignLeft className="w-3.5 h-3.5" />
-                    <span>По левому краю</span>
+                    <span>{tb.alignLeft}</span>
                   </div>
                   {currentAlign === 'left' && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                 </button>
@@ -586,7 +609,7 @@ export function EditorToolbar({
                 >
                   <div className="flex items-center gap-2">
                     <AlignCenter className="w-3.5 h-3.5" />
-                    <span>По центру</span>
+                    <span>{tb.alignCenter}</span>
                   </div>
                   {currentAlign === 'center' && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                 </button>
@@ -604,7 +627,7 @@ export function EditorToolbar({
                 >
                   <div className="flex items-center gap-2">
                     <AlignRight className="w-3.5 h-3.5" />
-                    <span>По правому краю</span>
+                    <span>{tb.alignRight}</span>
                   </div>
                   {currentAlign === 'right' && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                 </button>
@@ -621,7 +644,7 @@ export function EditorToolbar({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => toggleMenu('link')}
-            title="Вставить или изменить ссылку (Ctrl+K)"
+            title={tb.linkTooltip}
             className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
               activeMenu === 'link' || editor?.isActive('link')
                 ? 'bg-white/20 text-white'
@@ -640,7 +663,7 @@ export function EditorToolbar({
                 transition={{ duration: 0.12 }}
                 className="absolute top-full left-0 mt-1.5 w-72 rounded-xl bg-[#1c1c20] border border-[#2e2e34] shadow-2xl p-3 flex flex-col gap-2 z-50 text-neutral-300 text-xs"
               >
-                <div className="text-xs font-medium text-white">Вставить ссылку</div>
+                <div className="text-xs font-medium text-white">{tb.insertLink}</div>
                 <input
                   type="url"
                   value={linkUrl}
@@ -665,7 +688,7 @@ export function EditorToolbar({
                       }}
                       className="px-2 py-1 rounded text-red-400 hover:bg-red-500/10 cursor-pointer"
                     >
-                      Удалить
+                      {tb.deleteLink}
                     </button>
                   )}
                   <button
@@ -673,14 +696,14 @@ export function EditorToolbar({
                     onClick={() => setActiveMenu(null)}
                     className="px-2.5 py-1 rounded hover:bg-white/10 text-neutral-400 cursor-pointer"
                   >
-                    Отмена
+                    {tb.cancel}
                   </button>
                   <button
                     type="button"
                     onClick={setLink}
                     className="px-3 py-1 rounded bg-white text-black font-medium hover:bg-neutral-200 cursor-pointer"
                   >
-                    Применить
+                    {tb.apply}
                   </button>
                 </div>
               </motion.div>
@@ -693,12 +716,12 @@ export function EditorToolbar({
           type="button"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => {
-            const url = prompt('Введите URL изображения:');
+            const url = prompt(tb.imagePrompt);
             if (url && editor) {
-              editor.chain().focus().insertContent(`\n\n![Изображение](${url})\n\n`).run();
+              editor.chain().focus().insertContent(`\n\n![${tb.insertImage}](${url})\n\n`).run();
             }
           }}
-          title="Вставить изображение"
+          title={tb.insertImage}
           className="w-7.5 h-7.5 flex items-center justify-center rounded-md hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
         >
           <ImageIcon className="w-3.5 h-3.5" />
@@ -710,10 +733,10 @@ export function EditorToolbar({
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => {
             if (editor) {
-              editor.chain().focus().insertContent('\n\n> 🎬 [Видеоматериал: Пресс-конференция]\n\n').run();
+              editor.chain().focus().insertContent(`\n\n${tb.mediaSnippet}\n\n`).run();
             }
           }}
-          title="Вставить медиа-сноску"
+          title={tb.insertMediaNote}
           className="w-7.5 h-7.5 flex items-center justify-center rounded-md hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
         >
           <Film className="w-3.5 h-3.5" />
@@ -730,7 +753,7 @@ export function EditorToolbar({
               handleAction('quote');
             }
           }}
-          title="Цитата"
+          title={tb.quote}
           className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
             isQuote ? 'bg-white/20 text-white' : 'hover:bg-white/10 hover:text-white'
           }`}
@@ -747,7 +770,7 @@ export function EditorToolbar({
               editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
             }
           }}
-          title="Вставить интерактивную таблицу"
+          title={tb.insertTable}
           className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
             isTable ? 'bg-white/20 text-white' : 'hover:bg-white/10 hover:text-white'
           }`}
@@ -761,7 +784,7 @@ export function EditorToolbar({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => toggleMenu('more-elements')}
-            title="Дополнительные элементы"
+            title={tb.extraElements}
             className={`w-5.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
               activeMenu === 'more-elements' ? 'bg-white/20 text-white' : 'hover:bg-white/10 hover:text-white'
             }`}
@@ -788,7 +811,7 @@ export function EditorToolbar({
                   className="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer"
                 >
                   <span className="font-mono text-neutral-400">—</span>
-                  <span>Разделительная черта</span>
+                  <span>{tb.divider}</span>
                 </button>
 
                 <button
@@ -801,24 +824,25 @@ export function EditorToolbar({
                   className="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer"
                 >
                   <CodeIcon className="w-3.5 h-3.5" />
-                  <span>Блок кода</span>
+                  <span>{tb.codeBlock}</span>
                 </button>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </div>
+      </div>
 
       {/* Right Action Cluster with Full-Height Separator Line & Full-Edge Preview/Edit Button */}
       <div className="flex items-center h-full shrink-0">
-        <div className="flex items-center gap-0.5 px-2">
+        <div className="hidden sm:flex items-center gap-0.5 px-2">
           {/* Undo */}
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor?.chain().focus().undo().run()}
             disabled={!canUndo}
-            title="Отменить (Ctrl+Z)"
+            title={tb.undo}
             className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors ${
               canUndo
                 ? 'hover:bg-white/10 hover:text-white cursor-pointer'
@@ -834,7 +858,7 @@ export function EditorToolbar({
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor?.chain().focus().redo().run()}
             disabled={!canRedo}
-            title="Повторить (Ctrl+Y)"
+            title={tb.redo}
             className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors ${
               canRedo
                 ? 'hover:bg-white/10 hover:text-white cursor-pointer'
@@ -849,7 +873,7 @@ export function EditorToolbar({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={onToggleRawMode}
-            title={isRawMode ? 'Визуальный WYSIWYG режим' : 'Режим исходного Markdown кода'}
+            title={isRawMode ? tb.rawModeWysiwyg : tb.rawModeMarkdown}
             className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
               isRawMode ? 'bg-white/20 text-white font-mono' : 'hover:bg-white/10 hover:text-white'
             }`}
@@ -866,7 +890,7 @@ export function EditorToolbar({
           type="button"
           onClick={onTogglePreview}
           title={isPreviewMode ? t.editTooltip : t.previewTooltip}
-          className={`h-full px-5 sm:px-6 flex items-center gap-2 text-xs font-normal transition-colors cursor-pointer select-none rounded-tr-[20px] ${
+          className={`h-full px-3.5 sm:px-6 flex items-center gap-2 text-xs font-normal transition-colors cursor-pointer select-none rounded-tr-[20px] ${
             isPreviewMode
               ? 'text-neutral-300 hover:text-white hover:bg-white/[0.04]'
               : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/[0.08]'
@@ -875,16 +899,258 @@ export function EditorToolbar({
           {isPreviewMode ? (
             <>
               <Edit3 className="w-3.5 h-3.5 text-neutral-300" />
-              <span>{t.editBtn}</span>
+              <span className="hidden xs:inline sm:inline">{t.editBtn}</span>
             </>
           ) : (
             <>
               <FileSearch className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{t.previewBtn}</span>
+              <span className="hidden xs:inline sm:inline">{t.previewBtn}</span>
             </>
           )}
         </button>
       </div>
+    </div>
+
+    {/* Row 2: Mobile Secondary Formatting & History Toolbar */}
+    <AnimatePresence>
+      {isMobileMoreOpen && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.16 }}
+          className="sm:hidden border-t border-[#222225] bg-[#151518] px-2.5 py-1.5 flex items-center flex-wrap gap-1 w-full z-20 text-neutral-400"
+        >
+          {/* Strikethrough */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().toggleStrike().run()}
+            title={tb.strike}
+            className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
+              isStrike ? 'bg-white/20 text-white' : 'hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <Strikethrough className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Underline */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().toggleUnderline().run()}
+            title={tb.underline}
+            className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
+              isUnderline ? 'bg-white/20 text-white' : 'hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <UnderlineIcon className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Code */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().toggleCode().run()}
+            title={tb.inlineCode}
+            className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
+              isCode ? 'bg-white/20 text-white' : 'hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <CodeIcon className="w-3.5 h-3.5" />
+          </button>
+
+          <div className="w-[1px] h-4 bg-[#2b2b30] shrink-0 mx-0.5" />
+
+          {/* Bullet List */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().toggleBulletList().run()}
+            title={tb.bulletList}
+            className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
+              isBulletList ? 'bg-white/20 text-white' : 'hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <List className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Ordered List */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+            title={tb.orderedList}
+            className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer font-mono text-xs ${
+              isOrderedList ? 'bg-white/20 text-white font-bold' : 'hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            1.
+          </button>
+
+          {/* Align Left */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().setTextAlign('left').run()}
+            title={tb.alignLeft}
+            className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
+              currentAlign === 'left' ? 'bg-white/20 text-white' : 'hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <AlignLeft className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Align Center */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().setTextAlign('center').run()}
+            title={tb.alignCenter}
+            className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
+              currentAlign === 'center' ? 'bg-white/20 text-white' : 'hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <AlignCenter className="w-3.5 h-3.5" />
+          </button>
+
+          <div className="w-[1px] h-4 bg-[#2b2b30] shrink-0 mx-0.5" />
+
+          {/* Link */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              const url = prompt(tb.insertLink, editor?.getAttributes('link').href || '');
+              if (url !== null) {
+                if (url.trim() === '') {
+                  editor?.chain().focus().unsetLink().run();
+                } else {
+                  const href = url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`;
+                  editor?.chain().focus().setLink({ href }).run();
+                }
+              }
+            }}
+            title={tb.linkTooltip}
+            className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
+              editor?.isActive('link') ? 'bg-white/20 text-white' : 'hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <Link2 className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Image */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              const url = prompt(tb.imagePrompt);
+              if (url && editor) {
+                editor.chain().focus().insertContent(`\n\n![${tb.insertImage}](${url})\n\n`).run();
+              }
+            }}
+            title={tb.insertImage}
+            className="w-7.5 h-7.5 flex items-center justify-center rounded-md hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+          >
+            <ImageIcon className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Video */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              if (editor) {
+                editor.chain().focus().insertContent(`\n\n${tb.mediaSnippet}\n\n`).run();
+              }
+            }}
+            title={tb.insertMediaNote}
+            className="w-7.5 h-7.5 flex items-center justify-center rounded-md hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+          >
+            <Film className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Quote */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              if (editor) {
+                editor.chain().focus().toggleBlockquote().run();
+              } else {
+                handleAction('quote');
+              }
+            }}
+            title={tb.quote}
+            className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
+              isQuote ? 'bg-white/20 text-white' : 'hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <Quote className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Table */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              if (editor) {
+                editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+              }
+            }}
+            title={tb.insertTable}
+            className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
+              isTable ? 'bg-white/20 text-white' : 'hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <TableIcon className="w-3.5 h-3.5" />
+          </button>
+
+          <div className="w-[1px] h-4 bg-[#2b2b30] shrink-0 mx-0.5" />
+
+          {/* Undo */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().undo().run()}
+            disabled={!canUndo}
+            title={tb.undo}
+            className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors ${
+              canUndo ? 'hover:bg-white/10 hover:text-white cursor-pointer' : 'opacity-30 cursor-not-allowed'
+            }`}
+          >
+            <Undo2 className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Redo */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().redo().run()}
+            disabled={!canRedo}
+            title={tb.redo}
+            className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors ${
+              canRedo ? 'hover:bg-white/10 hover:text-white cursor-pointer' : 'opacity-30 cursor-not-allowed'
+            }`}
+          >
+            <Redo2 className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Raw markdown toggle */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={onToggleRawMode}
+            title={isRawMode ? tb.rawModeWysiwyg : tb.rawModeMarkdown}
+            className={`w-7.5 h-7.5 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
+              isRawMode ? 'bg-white/20 text-white font-mono' : 'hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <Brackets className="w-3.5 h-3.5" />
+          </button>
+        </motion.div>
+      )}
+    </AnimatePresence>
     </div>
   );
 }

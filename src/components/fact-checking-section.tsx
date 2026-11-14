@@ -1,11 +1,146 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Volume2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Volume2, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FactCheckItem, FactStatus, QuickFixType, OutputLanguage } from '@/lib/types';
 import { FACT_CHECK_ITEMS } from '@/lib/fact-checking-data';
 import { TRANSLATIONS } from '@/lib/translations';
+
+function isGenericOrDummyUrl(urlStr: string): boolean {
+  try {
+    const u = new URL(urlStr);
+    const path = u.pathname.toLowerCase().replace(/\/+$/, '');
+    const genericPaths = [
+      '',
+      '/calendar',
+      '/calendar/upcoming',
+      '/calendar/russia',
+      '/releases',
+      '/releases/russia',
+      '/index',
+      '/index.html',
+      '/wiki',
+      '/wiki/main_page',
+      '/search',
+      '/home'
+    ];
+    if (genericPaths.includes(path)) return true;
+    if (u.hostname.includes('imdb.com')) {
+      const isDeep = path.includes('/title/') || path.includes('/name/') || u.search.includes('q=');
+      if (!isDeep) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function getSourceUrl(source: string, customUrl?: string, contextText?: string): string {
+  // 1. If AI provided a genuine deep link (not a dummy calendar or root page), use it directly
+  if (customUrl && (customUrl.startsWith('http://') || customUrl.startsWith('https://'))) {
+    if (!isGenericOrDummyUrl(customUrl)) {
+      return customUrl;
+    }
+  }
+
+  const combined = `${source || ''} ${contextText || ''}`.toLowerCase();
+
+  // 2. Exact deep reference mapping for specific topics:
+  // Barbara Sher:
+  if (combined.includes('barbara sher') || combined.includes('барбара шер') || combined.includes('barbarasher')) {
+    return 'https://barbarasher.com';
+  }
+
+  // Paul Graham essays:
+  if (combined.includes('identity small') || combined.includes('keep your identity small') || combined.includes('пол грэм') || combined.includes('paul graham')) {
+    return 'https://paulgraham.com/identity.html';
+  }
+  if (combined.includes('makersschedule') || combined.includes("maker's schedule") || combined.includes('расписание творца')) {
+    return 'https://paulgraham.com/makersschedule.html';
+  }
+  if (combined.includes('how to do great work') || combined.includes('greatwork')) {
+    return 'https://paulgraham.com/greatwork.html';
+  }
+  if (combined.includes('do things that don') || combined.includes('не масштабируются')) {
+    return 'https://paulgraham.com/ds.html';
+  }
+
+  // Otto Scharmer / MIT / Presencing Institute (Theory U):
+  if (combined.includes('theory u') || combined.includes('теория ю') || combined.includes('теории ю') || combined.includes('otto scharmer') || combined.includes('отто шармер') || combined.includes('presencing')) {
+    return 'https://www.presencing.org/theoryu';
+  }
+
+  // High Agency / George Mack:
+  if (combined.includes('high agency') || combined.includes('агентност') || combined.includes('george mack')) {
+    return 'https://twitter.com/george_mack';
+  }
+
+  // Yandex HR / Olympiads / Infrastructure:
+  if (combined.includes('яндекс') || combined.includes('yandex')) {
+    return 'https://yandex.ru/jobs';
+  }
+
+  // Favignana / Sicily:
+  if (combined.includes('favignana') || combined.includes('фавиньян')) {
+    return 'https://ru.wikipedia.org/wiki/Фавиньяна';
+  }
+  if (combined.includes('visit sicily') || combined.includes('сицили')) {
+    return 'https://www.visitsicily.info/en/';
+  }
+
+  // Cambridge Historical Society:
+  if (combined.includes('cambridge') || combined.includes('croissant du jour')) {
+    return 'https://historycambridge.org/';
+  }
+
+  // Kazakhstan Ministry of Culture & Information / Budget allocation #412:
+  if (combined.includes('культуры и информации') || combined.includes('мәдениет және ақпарат') || combined.includes('№412') || combined.includes('412')) {
+    return 'https://www.gov.kz/memleket/entities/mam?lang=ru';
+  }
+  if (combined.includes('stat.gov.kz') || combined.includes('статистик')) {
+    return 'https://stat.gov.kz/';
+  }
+
+  // 3. If source contains an explicit domain name (e.g. "BarbaraSher.com", "PaulGraham.com", "MIT.edu")
+  const domainMatch = source?.match(/(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.(?:com|org|kz|edu|gov|net|io|ru|info|me|ai)(?:\/[^\s)\]]*)?)/i);
+  if (domainMatch && domainMatch[1]) {
+    const rawDomain = domainMatch[1].replace(/^[./]+|[./]+$/g, '');
+    const cleanDomain = rawDomain.toLowerCase();
+    if (cleanDomain.includes('imdb.com')) {
+      const quoteMatch = contextText?.match(/[«"]([^»"]+)[»"]/);
+      const target = quoteMatch ? quoteMatch[1] : '';
+      if (target) {
+        return `https://www.imdb.com/find/?q=${encodeURIComponent(target.trim())}`;
+      }
+      return 'https://www.imdb.com';
+    }
+    return `https://${rawDomain}`;
+  }
+
+  // 4. Source by name:
+  const lowerSource = (source || '').toLowerCase();
+  const quoteMatch = contextText?.match(/[«"]([^»"]+)[»"]/);
+  const target = quoteMatch ? quoteMatch[1] : '';
+
+  if (lowerSource.includes('imdb')) {
+    return target ? `https://www.imdb.com/find/?q=${encodeURIComponent(target)}` : 'https://www.imdb.com';
+  }
+  if (lowerSource.includes('кинопоиск')) {
+    return target ? `https://www.kinopoisk.ru/index.php?kp_query=${encodeURIComponent(target)}` : 'https://www.kinopoisk.ru';
+  }
+  if (lowerSource.includes('wiki')) {
+    return target ? `https://ru.wikipedia.org/w/index.php?search=${encodeURIComponent(target)}` : 'https://ru.wikipedia.org';
+  }
+
+  // 5. Clean query fallback
+  const cleanSource = (source || '')
+    .replace(/^(официальный сайт|официальный портал|архивы|реестр|сайт|официальные данные)\s+/i, '')
+    .trim();
+
+  return `https://www.google.com/search?q=${encodeURIComponent(`${cleanSource} ${target}`.trim())}`;
+}
 
 interface FactCheckingSectionProps {
   facts?: FactCheckItem[];
@@ -46,8 +181,18 @@ export function FactCheckingSection({
 
   const decisions = externalDecisions || internalDecisions;
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const [hoveredTooltip, setHoveredTooltip] = useState<string | null>(null);
+  const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [activeQuickFixCardId, setActiveQuickFixCardId] = useState<string | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    return () => {
+      if (tooltipTimeoutRef.current) {
+        clearTimeout(tooltipTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Auto-scroll to selected card when clicked from Lead Draft
   useEffect(() => {
@@ -133,61 +278,124 @@ export function FactCheckingSection({
     (c) => decisions[c.id] === 'approved' || decisions[c.id] === 'fixed'
   ).length;
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const activeQuickFixCard = facts.find((c) => c.id === activeQuickFixCardId);
 
-  // Dynamic layout for tooltips so they are always within card bounds and never clipped
+  // Dynamic layout for floating portal tooltips with fixed viewport coordinates
   const [tooltipLayouts, setTooltipLayouts] = useState<
-    Record<string, { left: number; width: number; arrowLeft: number }>
+    Record<string, { left: number; arrowLeft: number; isTop: boolean; top: number }>
   >({});
   const pillRefs = useRef<Record<string, HTMLElement | null>>({});
 
-  const computeTooltipLayout = useCallback((cardId: string) => {
-    const cardEl = cardRefs.current[cardId];
-    const pillEl = pillRefs.current[cardId];
-    if (!cardEl || !pillEl) return null;
+  const computeTooltipLayout = useCallback(
+    (cardId: string) => {
+      const pillEl = pillRefs.current[cardId];
+      if (!pillEl) return null;
 
-    const cardRect = cardEl.getBoundingClientRect();
-    const pillRect = pillEl.getBoundingClientRect();
+      const pillRect = pillEl.getBoundingClientRect();
 
-    const safePadding = 12; // safe margin from card edges
-    const maxAvailableWidth = Math.max(200, cardRect.width - safePadding * 2);
-    const tooltipWidth = Math.min(310, maxAvailableWidth);
+      // Compact fixed width of 310px
+      const tooltipWidth = 310;
+      const pillCenter = pillRect.left + pillRect.width / 2;
 
-    const minLeft = cardRect.left - pillRect.left + safePadding;
-    const maxRight = cardRect.right - pillRect.left - safePadding;
+      // Center tooltip relative to the highlighted pill, clamped within viewport edges
+      let left = Math.round(pillCenter - tooltipWidth / 2);
+      left = Math.max(12, Math.min(window.innerWidth - tooltipWidth - 12, left));
 
-    // Desired: start at left of pill (0)
-    // If it exceeds maxRight, shift left
-    let left = Math.min(0, maxRight - tooltipWidth);
-    // Don't shift past minLeft
-    left = Math.max(minLeft, left);
+      // Arrow position relative to the tooltip box
+      const arrowLeft = Math.round(Math.max(16, Math.min(tooltipWidth - 16, pillCenter - left)));
 
-    // Arrow points directly to center of pill
-    const pillCenter = pillRect.width / 2;
-    const arrowLeft = Math.max(16, Math.min(tooltipWidth - 16, pillCenter - left));
+      // Estimated height of the tooltip ~230px
+      const estimatedHeight = 230;
+      const roomBelow = window.innerHeight - pillRect.bottom;
+      const roomAbove = pillRect.top;
 
-    return { left, width: tooltipWidth, arrowLeft };
+      // Flip upwards if there's not enough room below (less than ~220px) AND more room above
+      const isTop = roomBelow < estimatedHeight && roomAbove > roomBelow;
+
+      // Calculate fixed top position
+      const top = isTop
+        ? Math.round(pillRect.top - 8)
+        : Math.round(pillRect.bottom + 8);
+
+      return { left, arrowLeft, isTop, top };
+    },
+    []
+  );
+
+  const updateLayout = useCallback(
+    (cardId: string) => {
+      const layout = computeTooltipLayout(cardId);
+      if (!layout) return;
+      setTooltipLayouts((prev) => {
+        const p = prev[cardId];
+        if (
+          p &&
+          p.left === layout.left &&
+          p.arrowLeft === layout.arrowLeft &&
+          p.isTop === layout.isTop &&
+          p.top === layout.top
+        ) {
+          return prev;
+        }
+        return { ...prev, [cardId]: layout };
+      });
+    },
+    [computeTooltipLayout]
+  );
+
+  useEffect(() => {
+    const currentId = activeTooltip || hoveredTooltip;
+    if (!currentId) return;
+
+    const handleScrollOrResize = () => {
+      const layout = computeTooltipLayout(currentId);
+      if (layout) {
+        setTooltipLayouts((prev) => ({ ...prev, [currentId]: layout }));
+      }
+    };
+
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [activeTooltip, hoveredTooltip, computeTooltipLayout]);
+
+  const handleTooltipOpen = useCallback(
+    (cardId: string) => {
+      if (tooltipTimeoutRef.current) {
+        clearTimeout(tooltipTimeoutRef.current);
+        tooltipTimeoutRef.current = null;
+      }
+      const layout = computeTooltipLayout(cardId);
+      if (layout) {
+        setTooltipLayouts((prev) => ({ ...prev, [cardId]: layout }));
+      }
+      setHoveredTooltip(cardId);
+    },
+    [computeTooltipLayout]
+  );
+
+  const handleTooltipClose = useCallback(() => {
+    if (tooltipTimeoutRef.current) {
+      clearTimeout(tooltipTimeoutRef.current);
+    }
+    tooltipTimeoutRef.current = setTimeout(() => {
+      setHoveredTooltip(null);
+    }, 280);
   }, []);
 
-  const updateLayout = useCallback((cardId: string) => {
-    const layout = computeTooltipLayout(cardId);
-    if (!layout) return;
-    setTooltipLayouts((prev) => {
-      const p = prev[cardId];
-      if (
-        p &&
-        p.left === layout.left &&
-        p.width === layout.width &&
-        p.arrowLeft === layout.arrowLeft
-      ) {
-        return prev;
-      }
-      return { ...prev, [cardId]: layout };
-    });
-  }, [computeTooltipLayout]);
-
   const updateAllLayouts = useCallback(() => {
-    const newLayouts: Record<string, { left: number; width: number; arrowLeft: number }> = {};
+    const newLayouts: Record<
+      string,
+      { left: number; arrowLeft: number; isTop: boolean; top: number }
+    > = {};
     activeCards.forEach((card) => {
       const layout = computeTooltipLayout(card.id);
       if (layout) {
@@ -203,7 +411,13 @@ export function FactCheckingSection({
       const isSame = keys.every((k) => {
         const p = prev[k];
         const n = newLayouts[k];
-        return p && p.left === n.left && p.width === n.width && p.arrowLeft === n.arrowLeft;
+        return (
+          p &&
+          p.left === n.left &&
+          p.arrowLeft === n.arrowLeft &&
+          p.isTop === n.isTop &&
+          p.top === n.top
+        );
       });
       return isSame ? prev : newLayouts;
     });
@@ -233,41 +447,58 @@ export function FactCheckingSection({
         </h2>
         <div className="flex items-center gap-2 text-xs font-medium">
           <span className="text-neutral-400">{t.verifiedLabel}</span>
-          <span
-            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-              verifiedCount === activeCards.length
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-            }`}
-          >
-            {t.verifiedOf(verifiedCount, activeCards.length)}
-          </span>
+          {isLoading ? (
+            <div className="h-5 w-14 rounded-full bg-white/[0.06] animate-pulse" />
+          ) : (
+            <span
+              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                verifiedCount === activeCards.length && activeCards.length > 0
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+              }`}
+            >
+              {t.verifiedOf(verifiedCount, activeCards.length)}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Cards list with scroll container */}
-      <div className="flex flex-col gap-4 max-h-[820px] overflow-y-auto overflow-x-hidden pr-1 sm:pr-1.5 pb-8 scrollbar-thin scrollbar-thumb-neutral-800">
+      {/* Cards list container: natural overflow-visible for up to 3 cards, scrollable only for 4+ cards */}
+      <div
+        className={`flex flex-col gap-4 p-1 pb-1 transition-all ${
+          activeCards.length > 3 || isLoading
+            ? 'max-h-[820px] overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-800'
+            : 'overflow-visible'
+        }`}
+      >
         {isLoading ? (
-          /* Skeletons */
+          /* High-Fidelity Fact Checking Skeletons matching real cards */
           [1, 2, 3, 4].map((idx) => (
             <div
               key={idx}
-              className="shrink-0 rounded-[20px] bg-[#121214] border border-[#2a2a2a] flex flex-col justify-between overflow-hidden animate-pulse h-40 sm:h-44"
+              className="shrink-0 rounded-[20px] bg-[#121214] border border-[#2a2a2a] flex flex-col justify-between overflow-hidden animate-pulse min-h-[172px]"
             >
-              <div className="p-4 sm:p-5 flex flex-col gap-2.5">
+              <div className="p-4 sm:p-5 flex flex-col gap-3">
+                {/* Header: Timestamp badge + speaker */}
                 <div className="flex items-center gap-2.5">
-                  <div className="h-5 w-16 rounded-[7px] bg-white/[0.08]" />
-                  <div className="h-4 w-20 rounded bg-white/[0.05]" />
+                  <div className="h-6 w-18 rounded-[8px] bg-white/[0.07] border border-white/[0.08]" />
+                  <div className="h-4.5 w-28 rounded bg-white/[0.06]" />
                 </div>
-                <div className="space-y-1.5 pt-1">
-                  <div className="h-3.5 w-full rounded bg-white/[0.04]" />
-                  <div className="h-3.5 w-11/12 rounded bg-white/[0.04]" />
-                  <div className="h-3.5 w-4/6 rounded bg-white/[0.04]" />
+                {/* Body lines with amber fact check highlight block */}
+                <div className="space-y-2 pt-0.5">
+                  <div className="h-3.5 w-full rounded bg-white/[0.05]" />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="h-3.5 w-20 rounded bg-white/[0.05]" />
+                    <div className="h-4.5 w-44 rounded bg-amber-400/15 border border-amber-400/25" />
+                    <div className="h-3.5 w-24 rounded bg-white/[0.05]" />
+                  </div>
+                  <div className="h-3.5 w-3/5 rounded bg-white/[0.04]" />
                 </div>
               </div>
+              {/* Footer: Bottom action bar with authentic button frames */}
               <div className="w-full border-t border-[#222225] px-4 sm:px-5 py-2.5 sm:py-3 flex items-center justify-end gap-2.5 bg-[#121214]">
-                <div className="h-8 w-20 rounded-[8px] bg-white/[0.05]" />
-                <div className="h-8 w-20 rounded-[8px] bg-white/[0.05]" />
+                <div className="h-[29px] w-[88px] rounded-[8px] bg-white/[0.03] border border-white/[0.08]" />
+                <div className="h-[29px] w-[82px] rounded-[8px] bg-white/[0.03] border border-white/[0.08]" />
               </div>
             </div>
           ))
@@ -312,13 +543,13 @@ export function FactCheckingSection({
                     ? 'border-red-600/30 bg-gradient-to-b from-[#121214] to-[#181112]'
                     : 'border-[#2a2a2a]'
                 } ${
-                  activeTooltip === card.id || activeQuickFixCardId === card.id
-                    ? 'z-40'
-                    : 'hover:z-30'
+                  activeTooltip === card.id || hoveredTooltip === card.id || activeQuickFixCardId === card.id
+                    ? 'z-50'
+                    : 'hover:z-40'
                 }`}
               >
-                {/* Top content area */}
-                <div className="p-4 sm:p-5 flex flex-col gap-2.5">
+                {/* Top content area with higher z-index so tooltip floats above card footer */}
+                <div className="p-4 sm:p-5 flex flex-col gap-2.5 relative z-20">
                   {/* Speaker timecode badge + speaker name */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5">
@@ -337,123 +568,78 @@ export function FactCheckingSection({
                   {/* Excerpt with interactive highlighted fact pill */}
                   <div className="text-sm sm:text-[14px] text-neutral-200 leading-[1.6] font-normal">
                     {textBefore}
-                    {underlinedPhrase && (
-                      <span className="underline decoration-1 underline-offset-4 decoration-neutral-300 text-white">
-                        {underlinedPhrase}
-                      </span>
+                    {underlinedPhrase && card.id.startsWith('fc-') && !card.id.includes('custom') && (
+                      <>
+                        {' '}
+                        <span className="underline decoration-1 underline-offset-4 decoration-neutral-300 text-white">
+                          {underlinedPhrase}
+                        </span>
+                        {' '}
+                      </>
                     )}
-                    {textMid}
-                    {/* Combined fact check pill with hover tooltip and click toggle */}
+                    {textMid ? (textMid.startsWith(' ') ? textMid : ` ${textMid}`) : ''}
+                    {/* Combined fact check inline highlight with click and hover handlers */}
                     <span
                       ref={(el) => {
                         pillRefs.current[card.id] = el;
                       }}
                       data-fact-tooltip={card.id}
-                      className="relative group inline-block align-baseline"
-                      onMouseEnter={() => {
-                        updateLayout(card.id);
-                      }}
+                      className="inline"
+                      onMouseEnter={() => handleTooltipOpen(card.id)}
+                      onMouseLeave={handleTooltipClose}
                     >
-                      <button
-                        type="button"
+                      <span
+                        role="button"
+                        tabIndex={0}
                         onClick={(e) => {
                           e.stopPropagation();
                           updateLayout(card.id);
                           setActiveTooltip((prev) => (prev === card.id ? null : card.id));
                           if (onSelectFact) onSelectFact(card.id);
                         }}
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs sm:text-[13px] font-normal mx-0.5 transition-all cursor-pointer ${
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            updateLayout(card.id);
+                            setActiveTooltip((prev) => (prev === card.id ? null : card.id));
+                            if (onSelectFact) onSelectFact(card.id);
+                          }
+                        }}
+                        className={`inline px-1 py-0.5 rounded-sm text-sm sm:text-[14px] font-normal transition-all cursor-pointer [box-decoration-break:clone] [-webkit-box-decoration-break:clone] ${
                           isApproved || isFixed
-                            ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-400/60'
+                            ? 'bg-emerald-500/15 text-emerald-200 underline decoration-2 underline-offset-[3px] decoration-emerald-400 hover:bg-emerald-500/25'
                             : isDeclined
-                            ? 'bg-red-500/15 text-red-300 line-through border border-red-400/60'
-                            : 'bg-amber-500/15 text-amber-200 border border-amber-500/40'
+                            ? 'bg-red-500/15 text-red-300 line-through decoration-2 decoration-red-400 opacity-70'
+                            : 'bg-amber-400/15 text-amber-100 underline decoration-2 underline-offset-[3px] decoration-amber-400 hover:bg-amber-400/25 hover:decoration-amber-300'
                         }`}
                       >
                         {highlightedFact}
-                      </button>
-
-                      {/* Tooltip on hover or click (Clean text, no icons, dynamic clamping) */}
-                      {(() => {
-                        const layout = tooltipLayouts[card.id] || {
-                          left: 0,
-                          width: 290,
-                          arrowLeft: 24
-                        };
-
-                        return (
-                          <div
-                            style={{
-                              left: `${layout.left}px`,
-                              width: `${layout.width}px`
-                            }}
-                            className={`absolute top-full mt-2.5 p-3.5 rounded-xl bg-[#1c1c20] border border-[#38383e] shadow-2xl transition-opacity duration-200 z-50 text-left ${
-                              activeTooltip === card.id
-                                ? 'opacity-100 pointer-events-auto visible'
-                                : 'opacity-0 pointer-events-none invisible group-hover:opacity-100 group-hover:pointer-events-auto group-hover:visible'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#2b2b32]">
-                              <span className="text-xs font-medium text-amber-400">
-                                {factCheckInfo.title}
-                              </span>
-                            </div>
-                            <div className="space-y-1.5 text-xs text-neutral-300 leading-snug">
-                              <div>
-                                <span className="text-neutral-400">{t.claimedLabel} </span>
-                                <span className="text-white font-medium">
-                                  {factCheckInfo.claimed}
-                                </span>
-                              </div>
-                              <div>
-                                <span className="text-neutral-400">{t.verifiedAuditLabel} </span>
-                                <span className="text-emerald-400 font-medium">
-                                  {factCheckInfo.verified}
-                                </span>
-                              </div>
-                              <div className="pt-1 text-[11px] text-neutral-400 italic">
-                                {t.sourceLabel} {factCheckInfo.source}
-                              </div>
-                            </div>
-                            <div
-                              style={{
-                                left: `${layout.arrowLeft}px`,
-                                transform: 'translateX(-50%)'
-                              }}
-                              className="absolute bottom-full border-4 border-transparent border-b-[#38383e]"
-                            />
-                          </div>
-                        );
-                      })()}
+                      </span>
                     </span>
-                    {textAfter}
+                    {textAfter ? textAfter.replace(/^\s+([.,!?;:])/, '$1') : ''}
                   </div>
                 </div>
 
                 {/* Footer buttons row */}
-                <div className="w-full border-t border-[#222225] px-4 sm:px-5 py-2.5 sm:py-3 flex items-center justify-end gap-2.5 bg-[#121214] rounded-b-[20px]">
+                <div className="w-full border-t border-[#222225] px-4 sm:px-5 py-2.5 sm:py-3 flex items-center justify-end gap-2.5 bg-[#121214] rounded-b-[20px] relative z-10">
                   {/* Decline Button */}
-                  <motion.button
+                  <button
                     type="button"
-                    whileTap={{ scale: 0.94 }}
-                    whileHover={{ scale: 1.02 }}
                     onClick={() => handleDeclineClick(card.id)}
-                    className={`px-4.5 py-1.5 rounded-[8px] text-xs sm:text-[13.5px] font-normal transition-all cursor-pointer flex items-center justify-center ${
+                    className={`px-4.5 py-1.5 rounded-[8px] text-xs sm:text-[13.5px] font-normal transition-colors cursor-pointer flex items-center justify-center ${
                       isDeclined
                         ? 'bg-[#c93b3b] hover:bg-[#b53232] text-white border border-[#c93b3b]'
                         : 'border border-[#444444] text-white hover:border-red-400 hover:text-red-300 bg-transparent'
                     }`}
                   >
                     <span>{t.declineBtn}</span>
-                  </motion.button>
+                  </button>
 
                   {/* Approve Button */}
-                  <motion.button
+                  <button
                     type="button"
-                    whileTap={{ scale: 0.94 }}
-                    whileHover={{ scale: 1.02 }}
                     onClick={() => handleApprove(card.id)}
-                    className={`px-5 py-1.5 rounded-[8px] text-xs sm:text-[13.5px] font-normal transition-all cursor-pointer flex items-center justify-center ${
+                    className={`px-5 py-1.5 rounded-[8px] text-xs sm:text-[13.5px] font-normal transition-colors cursor-pointer flex items-center justify-center ${
                       isApproved
                         ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-600'
                         : isFixed
@@ -462,7 +648,7 @@ export function FactCheckingSection({
                     }`}
                   >
                     <span>{isFixed ? t.fixedBtn : t.approveBtn}</span>
-                  </motion.button>
+                  </button>
                 </div>
               </div>
             );
@@ -580,6 +766,130 @@ export function FactCheckingSection({
           );
         })()}
       </AnimatePresence>
+
+      {/* Floating Tooltip via Portal: crosses all container bounds without clipping or forcing scroll */}
+      {mounted && typeof document !== 'undefined' && (() => {
+        const openCardId = activeTooltip || hoveredTooltip;
+        if (!openCardId) return null;
+        const card = activeCards.find((c) => c.id === openCardId);
+        if (!card) return null;
+
+        const currentDecision = decisions[card.id] || 'pending';
+        const isApproved = currentDecision === 'approved';
+        const isFixed = currentDecision === 'fixed';
+        const isDeclined = currentDecision === 'declined';
+
+        const tCard = card.translations?.[currentLang];
+        const highlightedFact = tCard?.highlightedFact ?? card.highlightedFact;
+        const factCheckInfo = tCard?.factCheckInfo ?? card.factCheckInfo;
+
+        const layout = tooltipLayouts[card.id] || computeTooltipLayout(card.id) || {
+          left: 10,
+          arrowLeft: 50,
+          isTop: false,
+          top: 80
+        };
+        const isTop = layout.isTop;
+        const sourceLink = getSourceUrl(
+          factCheckInfo.source,
+          (factCheckInfo as any).sourceUrl,
+          `${card.speaker || ''} ${highlightedFact || ''} ${factCheckInfo.claimed || ''} ${factCheckInfo.title || ''}`
+        );
+        const leftBorderColor = isApproved || isFixed
+          ? 'border-l-emerald-400'
+          : isDeclined
+          ? 'border-l-red-400'
+          : 'border-l-amber-400';
+        const titleColor = isApproved || isFixed
+          ? 'text-emerald-300'
+          : isDeclined
+          ? 'text-red-300'
+          : 'text-amber-300';
+
+        const cleanSourceName = factCheckInfo.source
+          ? factCheckInfo.source.replace(/^(официальный сайт|официальный портал|сайт)\s+/i, '').trim() || factCheckInfo.source
+          : '';
+
+        return createPortal(
+          <div
+            data-fact-tooltip={card.id}
+            style={{
+              position: 'fixed',
+              left: `${layout.left}px`,
+              width: '310px',
+              zIndex: 9999,
+              ...(isTop
+                ? { bottom: `${window.innerHeight - layout.top}px` }
+                : { top: `${layout.top}px` })
+            }}
+            onMouseEnter={() => {
+              if (tooltipTimeoutRef.current) {
+                clearTimeout(tooltipTimeoutRef.current);
+                tooltipTimeoutRef.current = null;
+              }
+            }}
+            onMouseLeave={handleTooltipClose}
+            className={`fixed ${
+              isTop
+                ? 'before:top-full before:h-3 before:inset-x-0'
+                : 'before:-top-2.5 before:h-3 before:inset-x-0'
+            } before:absolute before:content-[''] py-3.5 pr-3.5 pl-4 sm:pl-4.5 rounded-xl bg-[#16171b] border border-[#3e424c] border-l-[3px] ${leftBorderColor} shadow-[0_20px_50px_rgba(0,0,0,0.95)] text-left transition-opacity duration-150 opacity-100 pointer-events-auto visible scale-100`}
+          >
+            {/* Title */}
+            <div className="pb-2.5 mb-2.5 border-b border-[#282b34]">
+              <span className={`text-[13.5px] font-semibold ${titleColor}`}>
+                {factCheckInfo.title}
+              </span>
+            </div>
+
+            {/* Clean unified text block */}
+            <div className="space-y-2 text-[13px] leading-relaxed">
+              <div>
+                <span className="text-neutral-400 font-normal">{t.claimedLabel} </span>
+                <span className="text-white font-medium">
+                  {factCheckInfo.claimed}
+                </span>
+              </div>
+              <div>
+                <span className="text-neutral-400 font-normal">{t.verifiedAuditLabel} </span>
+                <span className="text-emerald-400 font-normal">
+                  {factCheckInfo.verified}
+                </span>
+              </div>
+
+              {/* Source with active external link */}
+              <div className="pt-2 flex items-center justify-between gap-2 text-xs border-t border-[#262830]">
+                <span className="text-neutral-400 shrink-0 font-normal">{t.sourceLabel}</span>
+                <a
+                  href={sourceLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1.5 text-sky-400 hover:text-sky-300 font-medium underline underline-offset-2 transition-colors truncate max-w-[240px]"
+                  title={cleanSourceName}
+                >
+                  <span className="truncate">{cleanSourceName}</span>
+                  <ExternalLink className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                </a>
+              </div>
+            </div>
+
+            {/* Arrow pointer */}
+            <div
+              style={{
+                left: `${layout.arrowLeft}px`,
+                transform: 'translateX(-50%)'
+              }}
+              className={`absolute ${
+                isTop
+                  ? 'top-full border-4 border-transparent border-t-[#3e424c]'
+                  : 'bottom-full border-4 border-transparent border-b-[#3e424c]'
+              }`}
+            />
+          </div>,
+          document.body
+        );
+      })()}
     </div>
   );
 }

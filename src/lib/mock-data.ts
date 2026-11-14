@@ -138,7 +138,7 @@ export const MOCK_PIPELINE_RESULT: PipelineResult = {
 > ⚠️ **Аналитическая справка фактчекинг-отдела Qalam AI:**
 > Заявление спикера о «стопроцентном покрытии дефицита для 80% районных изданий» носит сугубо оценочный характер. Согласно официальной бюджетной росписи №412, прямой объем грантов составит **480 млн тенге** (20 млн тенге заморожены в стабилизационном резерве). По расчетам отраслевых экспертов, конкурс сможет удовлетворить порядка 35–42% поданных заявок.`,
 
-      telegram_post: `⚡️ **500 млн тенге направят на гранты для региональных медиа Казахстана**
+      telegram_post: `📰 **500 млн тенге направят на гранты для региональных медиа Казахстана**
 
 В Астане объявили о запуске грантовой программы поддержки небольших цифровых редакций и районных изданий.
 
@@ -154,25 +154,26 @@ export const MOCK_PIPELINE_RESULT: PipelineResult = {
 🔗 Ссылка на подачу документов: в первом комментарии.`,
 
       social_script: `📱 **СЦЕНАРИЙ ДЛЯ INSTAGRAM REELS / TIKTOK**
-Хронометраж: 45 сек. Формат: Динамичный разбор + титры.
+Хронометраж: 1:00 мин (60 сек). Формат: Динамичный разбор + титры.
 
-[00:00 - 00:04] ХУК НА ЭКРАНЕ: 
-Спикер в кадре / плашка: «500 миллионов тенге для региональных журналистов. Реальная помощь или популизм?»
+[00:00 - 00:05] ХУК НА ЭКРАНЕ: 
+Спикер в кадре / плашка: «500 МИЛЛИОНОВ ТЕНГЕ ДЛЯ РЕГИОНАЛЬНЫХ ЖУРНАЛИСТОВ. Реальная помощь или популизм?»
 Визуал: кадры с пресс-брифинга СЦК, крупная плашка «500 000 000 ₸».
 
-[00:04 - 00:15] СУТЬ ИНФОПОВОДА:
-Голос: «В Казахстане запустили грантовую программу для небольших онлайн-редакций. Если в вашей команде до 10 человек и вы делаете локальные новости — вы можете претендовать на финансирование».
+[00:05 - 00:20] СУТЬ И КОНТЕКСТ:
+Голос: «В Казахстане запустили масштабную грантовую программу для небольших независимых онлайн-редакций. Если в вашей команде до 10 человек и вы делаете локальные новости, расследования или мультимедиа — государство готово выделить финансирование до 25 млн тенге на проект».
 
-[00:15 - 00:30] КЛЮЧЕВЫЕ ФАКТЫ (Карусель плашек):
-• Срок подачи: до 15 ноября 2026 года
-• Куратор: Министерство культуры и информации РК
-• Заявки проходят через открытый конкурс с независимыми экспертами.
+[00:20 - 00:40] КЛЮЧЕВЫЕ ФАКТЫ И АУДИТ:
+• Срок подачи заявок: строго до 15 ноября 2026 года;
+• Куратор программы: Министерство культуры и информации РК;
+• Отбор: независимая комиссия из медиаэкспертов и журналистов;
+• Приоритет: цифровизация, веб-платформы и фактчекинг.
 
-[00:30 - 00:40] РЕДАКТОРСКАЯ ПРОВЕРКА (Оговорка):
-«Чиновники заявили, что закроют проблемы 80% редакций, но эксперты сомневаются: денег хватит максимум на треть участников».
+[00:40 - 00:52] РЕДАКТОРСКАЯ ПРОВЕРКА (Оговорка):
+«Чиновники заявили, что полностью закроют дефицит бюджетов для 80% районных изданий. Однако наш аудит бюджетной росписи №412 показал: прямой фонд — 480 млн тенге, и денег хватит максимум на треть всех заявок».
 
-[00:40 - 00:45] ПРИЗЫВ К ДЕЙСТВИЮ (CTA):
-«Сохраняйте этот рилс и делитесь с коллегами-журналистами. Полный разбор условий — по ссылке в шапке профиля!»`
+[00:52 - 01:00] ПРИЗЫВ К ДЕЙСТВИЮ (CTA):
+«Как считаете, помогут ли гранты независимым медиа в регионах? Пишите в комментариях и сохраняйте разбор условий по ссылке в шапке профиля!»`
     },
     kz: {
       web_article: `## Қазақстанда өңірлік цифрлық редакцияларды қолдауға 500 млн теңге бөлінді
@@ -204,7 +205,7 @@ export const MOCK_PIPELINE_RESULT: PipelineResult = {
 > ⚠️ **Qalam AI фактчекинг қызметінің анықтамасы:**
 > Спикердің «аудандық басылымдардың 80%-ын толық қамтимыз» деген мәлімдемесі асыра бағаланған. №412 ресми бюджеттік кестеге сәйкес тікелей грант көлемі **480 млн теңгені** құрайды (20 млн теңге тұрақтандыру резервінде сақталған). Сарапшылардың есебі бойынша грант түскен өтінімдердің 35–42%-ын ғана қамти алады.`,
 
-      telegram_post: `⚡️ **Қазақстанда өңірлік медиаға 500 млн теңге көлемінде грант бөлінеді**
+      telegram_post: `📰 **Қазақстанда өңірлік медиаға 500 млн теңге көлемінде грант бөлінеді**
 
 Астанада шағын цифрлық редакциялар мен аудандық басылымдарды қолдауға арналған грант бағдарламасы жарияланды.
 
@@ -220,25 +221,26 @@ export const MOCK_PIPELINE_RESULT: PipelineResult = {
 🔗 Толық ақпарат пен өтінім сілтемесі төменде.`,
 
       social_script: `📱 **INSTAGRAM REELS / TIKTOK ҮШІН СЦЕНАРИЙ**
-Ұзақтығы: 45 сек. Форматы: Динамикалық талдау + субтитрлер.
+Ұзақтығы: 1:00 мин (60 сек). Форматы: Динамикалық талдау + субтитрлер.
 
-[00:00 - 00:04] ЭКРАНДАҒЫ ХУК:
-Кадрдағы спикер: «Өңірлік журналистерге 500 миллион теңге. Бұл шынайы көмек пе, әлде кезекті уәде ме?»
+[00:00 - 00:05] ЭКРАНДАҒЫ ХУК:
+Кадрдағы спикер: «ӨҢІРЛІК ЖУРНАЛИСТЕРГЕ 500 МИЛЛИОН ТЕҢГЕ. Бұл шынайы көмек пе, әлде кезекті уәде ме?»
 Визуал: ОКҚ брифингінен кадрлар, «500 000 000 ₸» жазуы.
 
-[00:04 - 00:15] НЕГІЗГІ ОҚИҒА:
-Дауыс: «Қазақстанда шағын онлайн-редакцияларға арналған грант бағдарламасы басталды. Егер сіздің командада 10 адамға дейін болса және жергілікті жаңалықтар жасасаңыз — қаржыландыру ала аласыз».
+[00:05 - 00:20] НЕГІЗГІ ОҚИҒА МЕН МӘН-ЖАЙ:
+Дауыс: «Қазақстанда шағын тәуелсіз онлайн-редакцияларға арналған ауқымды грант бағдарламасы басталды. Егер сіздің командада 10 адамға дейін болса және жергілікті жаңалықтар мен зерттеулер жасасаңыз — мемлекет әр жобаға 25 млн теңгеге дейін қаржы бөлуге дайын».
 
-[00:15 - 00:30] МАҢЫЗДЫ ШАРТТАР (Слайдтар):
-• Құжат қабылдау: 2026 жылғы 15 қарашаға дейін
-• Куратор: ҚР Мәдениет және ақпарат министрлігі
-• Тәуелсіз сарапшылардың ашық конкурсы.
+[00:20 - 00:40] МАҢЫЗДЫ ШАРТТАР МЕН АУДИТ:
+• Құжат қабылдау: 2026 жылғы 15 қарашаға дейін;
+• Куратор: ҚР Мәдениет және ақпарат министрлігі;
+• Тәуелсіз сарапшылар мен журналистердің ашық конкурсы;
+• Басымдық: цифрландыру, деректер журналистикасы және фактчекинг.
 
-[00:30 - 00:40] РЕДАКЦИЯЛЫҚ ТЕКСЕРІС:
-«Шенеуніктер редакциялардың 80%-ын қамтимыз деді, бірақ сарапшылар қаражат тек қатысушылардың үштен біріне жететінін айтады».
+[00:40 - 00:52] РЕДАКЦИЯЛЫҚ ТЕКСЕРІС:
+«Шенеуніктер аудандық басылымдардың 80%-ын қамтимыз деді, бірақ №412 ресми бюджеттік кестені талдау көрсеткендей: қаражат тек қатысушылардың үштен біріне ғана жетеді».
 
-[00:40 - 00:45] ӘРЕКЕТКЕ ШАҚЫРУ (CTA):
-«Бұл бейнені сақтап, журналист әріптестеріңізбен бөлісіңіз. Толық шарттар — профильдегі сілтемеде!»`
+[00:52 - 01:00] ӘРЕКЕТКЕ ШАҚЫРУ (CTA):
+«Өңірлік медиаға бұл қолдау көмектесе ме? Пікіріңізді қалдырып, бейнені әріптестеріңізбен бөлісіңіз!»`
     },
     en: {
       web_article: `## Kazakhstan Allocates 500M KZT to Drive Digital Transformation for Regional Newsrooms
@@ -270,7 +272,7 @@ The evaluation committee has established four priority funding tiers based on ed
 > ⚠️ **Qalam AI Fact-Checking Intelligence Note:**
 > The ministry's pledge to "fully cover revenue deficits for 80% of regional media outlets" is an aspirational estimate. Official budget allocation registry #412 confirms direct disbursements at **480 million tenge** (20M KZT held in contingency reserve). Media economists project that the initiative will cover approximately 35–42% of qualified applicants.`,
 
-      telegram_post: `⚡️ **500M KZT Grants Launched for Independent Regional Media in Kazakhstan**
+      telegram_post: `📰 **500M KZT Grants Launched for Independent Regional Media in Kazakhstan**
 
 The Ministry of Culture and Information has officially opened applications for a landmark grant program supporting local digital newsrooms.
 
@@ -286,25 +288,26 @@ The Ministry of Culture and Information has officially opened applications for a
 🔗 Application portal link available in comments.`,
 
       social_script: `📱 **INSTAGRAM REELS / TIKTOK SCRIPT**
-Duration: 45s • Format: Fast-paced explainer + dynamic subtitles.
+Duration: 1:00 min (60s) • Format: Fast-paced explainer + dynamic subtitles.
 
-[00:00 - 00:04] HOOK ON SCREEN:
-Speaker on camera / overlay: "500 million tenge for regional journalists. Genuine reform or PR campaign?"
+[00:00 - 00:05] HOOK ON SCREEN:
+Speaker on camera / overlay: "500 MILLION TENGE FOR REGIONAL JOURNALISTS. Genuine reform or PR campaign?"
 Visual: Briefing footage from Astana, bold text "500,000,000 ₸".
 
-[00:04 - 00:15] CORE STORY:
-Voiceover: "Kazakhstan just introduced direct grants for small digital newsrooms. If your team has under 10 reporters and covers local communities, you can qualify for grant funding."
+[00:05 - 00:20] CORE STORY & CONTEXT:
+Voiceover: "Kazakhstan just launched a comprehensive grant initiative for small independent digital newsrooms. If your team has under 10 reporters and produces local investigations, data reporting, or community news — you can receive up to 25M tenge in project funding."
 
-[00:15 - 00:30] KEY FACTS (Cards Carousel):
-• Application window closes: November 15, 2026
-• Managed by: Ministry of Culture and Information of Kazakhstan
-• Selected through an open competitive tender with independent evaluators.
+[00:20 - 00:40] KEY GUIDELINES & AUDIT:
+• Application deadline: strictly November 15, 2026;
+• Overseen by: Ministry of Culture and Information of Kazakhstan;
+• Selection: independent jury of senior journalists and media economists;
+• Priorities: digital transformation, web platforms, and fact-checking.
 
-[00:30 - 00:40] FACT CHECK (Editorial Caution):
-"Officials claim this covers 80% of local outlets, but media economists warn it will stretch to only one-third of applicants."
+[00:40 - 00:52] EDITORIAL FACT CHECK:
+"Officials claimed this covers 80% of regional publications, but financial audit #412 reveals the net allocation is 480M KZT — sufficient for barely one-third of applicants."
 
-[00:40 - 00:45] CALL TO ACTION:
-"Save this post and share with fellow reporters. Full guidelines linked in our bio!"`
+[00:52 - 01:00] CALL TO ACTION (CTA):
+"Will direct grants strengthen regional journalism? Share your thoughts below and tap the link in our bio for full guidelines!"`
     }
   }
 };

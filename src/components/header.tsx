@@ -9,7 +9,9 @@ import { TRANSLATIONS } from '@/lib/translations';
 interface HeaderProps {
   onTriggerDemo?: () => void;
   isDemoActive?: boolean;
+  isRealResultsActive?: boolean;
   onExitDemo?: () => void;
+  onNewMaterial?: () => void;
   currentLang?: OutputLanguage;
   onLangChange?: (lang: OutputLanguage) => void;
 }
@@ -17,7 +19,9 @@ interface HeaderProps {
 export function Header({
   onTriggerDemo,
   isDemoActive = false,
+  isRealResultsActive = false,
   onExitDemo,
+  onNewMaterial,
   currentLang = 'en',
   onLangChange
 }: HeaderProps) {
@@ -48,7 +52,13 @@ export function Header({
   };
 
   const handleDemoButtonClick = () => {
-    if (isDemoActive) {
+    if (isRealResultsActive) {
+      if (onNewMaterial) {
+        onNewMaterial();
+      } else if (onExitDemo) {
+        onExitDemo();
+      }
+    } else if (isDemoActive) {
       if (onExitDemo) onExitDemo();
     } else {
       if (onTriggerDemo) onTriggerDemo();
@@ -56,28 +66,28 @@ export function Header({
   };
 
   return (
-    <header className="w-full bg-[#0b0b0b] pt-8 sm:pt-10 pb-4 relative select-none">
+    <header className="w-full bg-[#0b0b0b] pt-6 sm:pt-7 pb-3 relative select-none">
       <div className="w-full max-w-[1520px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between relative min-h-[48px]">
         {/* Left spacer to keep center logo strictly centered */}
         <div className="w-24 sm:w-64 hidden sm:block" />
 
-        {/* Center: Brand with Pencil Logo (gap-2 for tighter spacing and absolute centering) */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+        {/* Center: Brand with Pencil Logo shifted slightly to the left and optically aligned */}
+        <div className="absolute left-1/2 -translate-x-1/2 -ml-5 sm:-ml-7 flex items-center gap-2.5">
           <Image
             src="/logo.png"
             alt="Qalam AI logo"
             width={86}
             height={38}
-            className="h-[36px] sm:h-[40px] w-auto object-contain"
+            className="h-[34px] sm:h-[38px] w-auto object-contain -translate-y-1 sm:-translate-y-1.5"
             priority
           />
-          <span className="text-[23px] sm:text-[25px] font-normal text-white tracking-wide">
+          <span className="text-[23px] sm:text-[25px] font-normal text-white tracking-wide leading-none">
             Qalam AI
           </span>
         </div>
 
         {/* Right: Language Dropdown and Demo mode button */}
-        <div className="flex items-center gap-6 sm:gap-8">
+        <div className="flex items-center gap-3 sm:gap-6 ml-auto z-10">
           {/* Language Dropdown */}
           <div className="relative" ref={langRef}>
             <button
@@ -113,30 +123,22 @@ export function Header({
                     }`}
                   >
                     <span>{lang.label}</span>
-                    {currentLang === lang.id && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                    )}
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.95 }}
-            whileHover={{ scale: 1.02 }}
-            onClick={handleDemoButtonClick}
-            className={`h-[42px] px-6 sm:px-7 rounded-[15px] transition-all flex items-center justify-center text-[15px] sm:text-[16px] font-normal cursor-pointer select-none ${
-              isDemoActive
-                ? 'border border-white/70 bg-white/10 text-white hover:bg-white/15'
-                : 'border border-[#9E9E9E] bg-transparent hover:bg-white/5 text-white'
-            }`}
-          >
-            {isDemoActive
-              ? TRANSLATIONS[currentLang]?.header.exitDemo || 'Exit demo'
-              : TRANSLATIONS[currentLang]?.header.demoMode || 'Demo mode'}
-          </motion.button>
+          {/* Demo mode button: ONLY shown on the hero screen, completely removed when viewing material/results */}
+          {!isRealResultsActive && !isDemoActive && (
+            <button
+              type="button"
+              onClick={handleDemoButtonClick}
+              className="h-[38px] sm:h-[42px] px-4 sm:px-7 rounded-[15px] transition-colors flex items-center justify-center text-[13px] sm:text-[16px] font-normal cursor-pointer select-none border border-[#9E9E9E] bg-transparent hover:bg-white/5 text-white"
+            >
+              {TRANSLATIONS[currentLang]?.header.demoMode || 'Demo mode'}
+            </button>
+          )}
         </div>
       </div>
     </header>

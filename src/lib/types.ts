@@ -12,6 +12,7 @@ export interface FactAuditInfo {
   claimed: string;
   verified: string;
   source: string;
+  sourceUrl?: string;
   suggestedFix?: string;
 }
 
@@ -111,6 +112,7 @@ export interface PipelineResult {
   rawTranscriptText: string;
   transcript: TranscriptItem[];
   flags: VerificationFlag[];
+  factCheckItems?: FactCheckItem[];
   outputs: MultilingualOutputs;
   isMock: boolean;
   createdAt: string;

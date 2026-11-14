@@ -4,6 +4,7 @@ export interface TranslationStrings {
   header: {
     exitDemo: string;
     demoMode: string;
+    newMaterial: string;
   };
   hero: {
     titleLine1: string;
@@ -15,9 +16,15 @@ export interface TranslationStrings {
     dropPrompt: string;
     dropFormats: string;
     chooseFile: string;
+    readyToProcess: string;
+    extractingAudio?: string;
+    uploadingFile?: string;
+    processFile: string;
+    changeFile: string;
     textPlaceholder: string;
     processText: string;
     processing: string;
+    sampleText: string;
     feature1Title: string;
     feature1Desc: string;
     feature1Tags: string[];
@@ -83,13 +90,76 @@ export interface TranslationStrings {
     title: string;
     speaker: string;
   };
+  editorToolbar: {
+    clearFormatting: string;
+    bold: string;
+    italic: string;
+    headingStyles: string;
+    h1: string;
+    h2: string;
+    h3: string;
+    paragraph: string;
+    highlightColor: string;
+    editorialMarkers: string;
+    markerYellow: string;
+    markerRed: string;
+    markerGreen: string;
+    markerBlue: string;
+    removeHighlight: string;
+    extraStyles: string;
+    strike: string;
+    underline: string;
+    inlineCode: string;
+    lists: string;
+    bulletList: string;
+    orderedList: string;
+    alignment: string;
+    alignLeft: string;
+    alignCenter: string;
+    alignRight: string;
+    linkTooltip: string;
+    insertLink: string;
+    deleteLink: string;
+    cancel: string;
+    apply: string;
+    insertImage: string;
+    imagePrompt: string;
+    insertMediaNote: string;
+    mediaSnippet: string;
+    quote: string;
+    insertTable: string;
+    extraElements: string;
+    divider: string;
+    codeBlock: string;
+    undo: string;
+    redo: string;
+    rawModeWysiwyg: string;
+    rawModeMarkdown: string;
+  };
+  alerts: {
+    unsupportedFormatTitle: string;
+    unsupportedFormatMsg: (name: string) => string;
+    unsupportedFormatHint: string;
+    sizeLimitTitle: string;
+    sizeLimitMsg: (name: string, sizeMb: string) => string;
+    sizeLimitHint: string;
+    hintPrefix: string;
+    understoodBtn: string;
+    goodBtn: string;
+    closeBtn: string;
+    processingErrorTitle: string;
+    serverError: (status: number) => string;
+    unknownError: string;
+    errorHint: string;
+  };
 }
 
 export const TRANSLATIONS: Record<OutputLanguage, TranslationStrings> = {
   ru: {
     header: {
       exitDemo: 'Выйти из демо',
-      demoMode: 'Демо режим'
+      demoMode: 'Демо режим',
+      newMaterial: 'Новый материал'
     },
     hero: {
       titleLine1: 'От аудиозаписи до',
@@ -99,11 +169,17 @@ export const TRANSLATIONS: Record<OutputLanguage, TranslationStrings> = {
       tabFile: 'Файл',
       tabText: 'Текст',
       dropPrompt: 'Перетащите аудиофайл сюда или нажмите для выбора',
-      dropFormats: 'Поддерживаются форматы MP3, WAV, M4A и MP4 до 25 МБ (казахский/русский языки).',
+      dropFormats: 'Поддерживаются форматы MP3, WAV, M4A и MP4 (казахский, русский и английский языки).',
       chooseFile: 'Выбрать файл',
+      readyToProcess: 'Файл готов к отправке',
+      extractingAudio: 'Извлечение аудио...',
+      uploadingFile: 'Загрузка...',
+      processFile: 'Обработать файл',
+      changeFile: 'Выбрать другой файл',
       textPlaceholder: 'Вставьте исходный текст интервью, расшифровку аудио или пресс-релиз...',
       processText: 'Обработать текст',
       processing: 'Обработка...',
+      sampleText: 'На брифинге в Астане официальные лица сообщили о выделении 500 млн тенге на прямую грантовую поддержку региональных медиа в 2026 году. По данным ведомства, свыше 80% независимых редакций подали заявки.',
       feature1Title: 'Аудио в текст',
       feature1Desc: 'Билингвальная транскрибация речи (KZ/RU) с таймкодами и разделением спикеров.',
       feature1Tags: ['KZ / RU', 'Таймкоды', 'Спикеры'],
@@ -189,12 +265,75 @@ export const TRANSLATIONS: Record<OutputLanguage, TranslationStrings> = {
     audioPreview: {
       title: 'Воспроизведение таймкода',
       speaker: 'Спикер'
+    },
+    editorToolbar: {
+      clearFormatting: 'Очистить форматирование',
+      bold: 'Жирный (Ctrl+B)',
+      italic: 'Курсив (Ctrl+I)',
+      headingStyles: 'Стили заголовков',
+      h1: 'H1 Заголовок',
+      h2: 'H2 Подзаголовок',
+      h3: 'H3 Секция',
+      paragraph: 'Обычный текст (Paragraph)',
+      highlightColor: 'Цвет маркера / Выделение',
+      editorialMarkers: 'Редакторские маркеры:',
+      markerYellow: 'Желтый (Важно)',
+      markerRed: 'Красный (Фактчек)',
+      markerGreen: 'Зеленый (Подтверждено)',
+      markerBlue: 'Синий (Цитата/Источник)',
+      removeHighlight: '✕ Снять выделение маркером',
+      extraStyles: 'Дополнительные стили',
+      strike: 'Зачеркнутый',
+      underline: 'Подчеркнутый',
+      inlineCode: 'Код в строке',
+      lists: 'Списки',
+      bulletList: '• Маркированный список',
+      orderedList: '1. Нумерованный список',
+      alignment: 'Выравнивание текста',
+      alignLeft: 'По левому краю',
+      alignCenter: 'По центру',
+      alignRight: 'По правому краю',
+      linkTooltip: 'Вставить или изменить ссылку (Ctrl+K)',
+      insertLink: 'Вставить ссылку',
+      deleteLink: 'Удалить',
+      cancel: 'Отмена',
+      apply: 'Применить',
+      insertImage: 'Вставить изображение',
+      imagePrompt: 'Введите URL изображения:',
+      insertMediaNote: 'Вставить медиа-сноску',
+      mediaSnippet: '> 🎬 [Видеоматериал: Пресс-конференция]',
+      quote: 'Цитата',
+      insertTable: 'Вставить интерактивную таблицу',
+      extraElements: 'Дополнительные элементы',
+      divider: 'Разделительная черта',
+      codeBlock: 'Блок кода',
+      undo: 'Отменить (Ctrl+Z)',
+      redo: 'Повторить (Ctrl+Y)',
+      rawModeWysiwyg: 'Визуальный WYSIWYG режим',
+      rawModeMarkdown: 'Режим исходного Markdown кода'
+    },
+    alerts: {
+      unsupportedFormatTitle: 'Неподдерживаемый формат',
+      unsupportedFormatMsg: (name) => `Формат файла «${name}» не поддерживается. Разрешенные форматы: MP3, WAV, M4A, MP4, AAC, OGG, MOV.`,
+      unsupportedFormatHint: 'Для наилучшей скорости и экономии токенов рекомендуем использовать аудиофайлы MP3 или M4A.',
+      sizeLimitTitle: 'Превышен лимит размера (100 МБ)',
+      sizeLimitMsg: (name, sizeMb) => `Выбранный файл «${name}» весит ${sizeMb} МБ. Максимальный размер файла для обработки составляет 100 МБ.`,
+      sizeLimitHint: 'Для длинных видеозаписей (1-2 часа) рекомендуем экспортировать только аудиодорожку в MP3 или M4A - это займет в 5 раз меньше объема и токенов без потери качества.',
+      hintPrefix: 'Подсказка:',
+      understoodBtn: 'Понятно',
+      goodBtn: 'Хорошо',
+      closeBtn: 'Закрыть',
+      processingErrorTitle: 'Ошибка обработки',
+      serverError: (status) => `Ошибка сервера: ${status}`,
+      unknownError: 'Неизвестная ошибка обработки',
+      errorHint: 'Проверьте настройки API ключей в верхнем меню или повторите попытку.'
     }
   },
   kz: {
     header: {
       exitDemo: 'Демодан шығу',
-      demoMode: 'Демо режимі'
+      demoMode: 'Демо режимі',
+      newMaterial: 'Жаңа материал'
     },
     hero: {
       titleLine1: 'Аудиожазбадан',
@@ -204,11 +343,17 @@ export const TRANSLATIONS: Record<OutputLanguage, TranslationStrings> = {
       tabFile: 'Файл',
       tabText: 'Мәтін',
       dropPrompt: 'Аудиофайлды осында сүйреңіз немесе таңдау үшін басыңыз',
-      dropFormats: '25 МБ дейінгі MP3, WAV, M4A және MP4 файлдары қолданылады (қазақ/орыс тілдері).',
+      dropFormats: 'MP3, WAV, M4A және MP4 файлдары қолданылады (қазақ, орыс және ағылшын тілдері).',
       chooseFile: 'Файлды таңдау',
+      readyToProcess: 'Файл жіберуге дайын',
+      extractingAudio: 'Аудиожолды алу...',
+      uploadingFile: 'Жүктелуде...',
+      processFile: 'Файлды өңдеу',
+      changeFile: 'Басқа файлды таңдау',
       textPlaceholder: 'Сұхбат мәтінін, аудио транскриптін немесе баспасөз хабарламасын енгізіңіз...',
       processText: 'Мәтінді өңдеу',
       processing: 'Өңделуде...',
+      sampleText: 'Астанада өткен брифингте ресми тұлғалар 2026 жылы өңірлік медиаға тікелей гранттық қолдау ретінде 500 млн теңге бөлінгенін хабарлады. Ведомство мәліметінше, тәуелсіз редакциялардың 80%-дан астамы өтінім берген.',
       feature1Title: 'Аудиодан мәтінге',
       feature1Desc: 'Таймкодтармен және спикерлерді ажыратумен қос тілді транскрипция (KZ/RU).',
       feature1Tags: ['KZ / RU', 'Таймкодтар', 'Спикерлер'],
@@ -294,12 +439,75 @@ export const TRANSLATIONS: Record<OutputLanguage, TranslationStrings> = {
     audioPreview: {
       title: 'Таймкодты тыңдау',
       speaker: 'Спикер'
+    },
+    editorToolbar: {
+      clearFormatting: 'Пішімдеуді тазарту',
+      bold: 'Қалың (Ctrl+B)',
+      italic: 'Курсив (Ctrl+I)',
+      headingStyles: 'Тақырып стильдері',
+      h1: 'H1 Басты тақырып',
+      h2: 'H2 Ішкі тақырып',
+      h3: 'H3 Бөлім',
+      paragraph: 'Қарапайым мәтін (Параграф)',
+      highlightColor: 'Маркер түсі / Ерекшелеу',
+      editorialMarkers: 'Редакторлық маркерлер:',
+      markerYellow: 'Сары (Маңызды)',
+      markerRed: 'Қызыл (Фактчек)',
+      markerGreen: 'Жасыл (Тексерілді)',
+      markerBlue: 'Көк (Дәйексөз/Дереккөз)',
+      removeHighlight: '✕ Маркерді алып тастау',
+      extraStyles: 'Қосымша стильдер',
+      strike: 'Сызылған',
+      underline: 'Асты сызылған',
+      inlineCode: 'Жолдағы код',
+      lists: 'Тізімдер',
+      bulletList: '• Таңбаланған тізім',
+      orderedList: '1. Нөмірленген тізім',
+      alignment: 'Мәтінді туралау',
+      alignLeft: 'Сол жақ шетімен',
+      alignCenter: 'Ортасына туралау',
+      alignRight: 'Оң жақ шетімен',
+      linkTooltip: 'Сілтеме қосу немесе өзгерту (Ctrl+K)',
+      insertLink: 'Сілтеме қосу',
+      deleteLink: 'Жою',
+      cancel: 'Болдырмау',
+      apply: 'Қолдану',
+      insertImage: 'Сурет қосу',
+      imagePrompt: 'Суреттің URL мекенжайын енгізіңіз:',
+      insertMediaNote: 'Медиа-сілтеме қосу',
+      mediaSnippet: '> 🎬 [Бейнематериал: Баспасөз мәслихаты]',
+      quote: 'Дәйексөз',
+      insertTable: 'Интерактивті кесте қосу',
+      extraElements: 'Қосымша элементтер',
+      divider: 'Бөлгіш сызық',
+      codeBlock: 'Код блогы',
+      undo: 'Болдырмау (Ctrl+Z)',
+      redo: 'Қайталау (Ctrl+Y)',
+      rawModeWysiwyg: 'Көрнекі WYSIWYG режимі',
+      rawModeMarkdown: 'Бастапқы Markdown коды режимі'
+    },
+    alerts: {
+      unsupportedFormatTitle: 'Қолдау көрсетілмейтін пішім',
+      unsupportedFormatMsg: (name) => `«${name}» файл пішіміне қолдау көрсетілмейді. Рұқсат етілген пішімдер: MP3, WAV, M4A, MP4, AAC, OGG, MOV.`,
+      unsupportedFormatHint: 'Жылдамдық пен токендерді үнемдеу үшін MP3 немесе M4A аудиофайлдарын пайдалануды ұсынамыз.',
+      sizeLimitTitle: 'Өлшем шегі асып кетті (100 МБ)',
+      sizeLimitMsg: (name, sizeMb) => `Таңдалған «${name}» файлының өлшемі ${sizeMb} МБ. Өңдеуге арналған ең үлкен файл өлшемі 100 МБ құрайды.`,
+      sizeLimitHint: 'Ұзақ бейнежазбалар (1-2 сағат) үшін тек MP3 немесе M4A аудиожолын экспорттауды ұсынамыз - бұл көлемді 5 есе азайтады.',
+      hintPrefix: 'Кеңес:',
+      understoodBtn: 'Түсінікті',
+      goodBtn: 'Жақсы',
+      closeBtn: 'Жабу',
+      processingErrorTitle: 'Өңдеу қатесі',
+      serverError: (status) => `Сервер қатесі: ${status}`,
+      unknownError: 'Белгісіз өңдеу қатесі',
+      errorHint: 'Жоғарғы мәзірден API кілттерін тексеріңіз немесе қайталап көріңіз.'
     }
   },
   en: {
     header: {
       exitDemo: 'Exit demo',
-      demoMode: 'Demo mode'
+      demoMode: 'Demo mode',
+      newMaterial: 'New material'
     },
     hero: {
       titleLine1: 'From raw audio to',
@@ -309,11 +517,17 @@ export const TRANSLATIONS: Record<OutputLanguage, TranslationStrings> = {
       tabFile: 'File',
       tabText: 'Text',
       dropPrompt: 'Drag and drop an audio file here or click to select.',
-      dropFormats: 'MP3, WAV, M4A, and MP4 files up to 25 MB are supported (Kazakh/Russian languages).',
+      dropFormats: 'MP3, WAV, M4A, and MP4 files are supported (Kazakh, Russian, and English).',
       chooseFile: 'Choose file',
+      readyToProcess: 'File ready for processing',
+      extractingAudio: 'Extracting audio...',
+      uploadingFile: 'Uploading...',
+      processFile: 'Process file',
+      changeFile: 'Choose another file',
       textPlaceholder: 'Insert raw interview text, audio transcript, or press release here...',
       processText: 'Process text',
       processing: 'Processing...',
+      sampleText: 'At a briefing in Astana, officials announced the allocation of 500 million tenge for direct grant support of regional media in 2026. Over 80% of independent newsrooms have applied.',
       feature1Title: 'Audio to Text',
       feature1Desc: 'Bilingual speech transcription (KZ/RU) with timestamps and speaker diarization.',
       feature1Tags: ['KZ / RU', 'Timestamps', 'Speakers'],
@@ -399,6 +613,68 @@ export const TRANSLATIONS: Record<OutputLanguage, TranslationStrings> = {
     audioPreview: {
       title: 'Playing timecode',
       speaker: 'Speaker'
+    },
+    editorToolbar: {
+      clearFormatting: 'Clear formatting',
+      bold: 'Bold (Ctrl+B)',
+      italic: 'Italic (Ctrl+I)',
+      headingStyles: 'Heading styles',
+      h1: 'H1 Heading',
+      h2: 'H2 Subheading',
+      h3: 'H3 Section',
+      paragraph: 'Normal text (Paragraph)',
+      highlightColor: 'Highlight color',
+      editorialMarkers: 'Editorial markers:',
+      markerYellow: 'Yellow (Important)',
+      markerRed: 'Red (Fact-check)',
+      markerGreen: 'Green (Verified)',
+      markerBlue: 'Blue (Quote/Source)',
+      removeHighlight: '✕ Remove highlight',
+      extraStyles: 'Extra styles',
+      strike: 'Strikethrough',
+      underline: 'Underline',
+      inlineCode: 'Inline code',
+      lists: 'Lists',
+      bulletList: '• Bullet list',
+      orderedList: '1. Numbered list',
+      alignment: 'Text alignment',
+      alignLeft: 'Align left',
+      alignCenter: 'Align center',
+      alignRight: 'Align right',
+      linkTooltip: 'Insert or edit link (Ctrl+K)',
+      insertLink: 'Insert link',
+      deleteLink: 'Delete',
+      cancel: 'Cancel',
+      apply: 'Apply',
+      insertImage: 'Insert image',
+      imagePrompt: 'Enter image URL:',
+      insertMediaNote: 'Insert media note',
+      mediaSnippet: '> 🎬 [Video footage: Press conference]',
+      quote: 'Quote',
+      insertTable: 'Insert interactive table',
+      extraElements: 'Additional elements',
+      divider: 'Horizontal rule',
+      codeBlock: 'Code block',
+      undo: 'Undo (Ctrl+Z)',
+      redo: 'Redo (Ctrl+Y)',
+      rawModeWysiwyg: 'Visual WYSIWYG mode',
+      rawModeMarkdown: 'Raw Markdown mode'
+    },
+    alerts: {
+      unsupportedFormatTitle: 'Unsupported format',
+      unsupportedFormatMsg: (name) => `File format for "${name}" is not supported. Allowed formats: MP3, WAV, M4A, MP4, AAC, OGG, MOV.`,
+      unsupportedFormatHint: 'For optimal speed and token economy, we recommend MP3 or M4A audio files.',
+      sizeLimitTitle: 'Size limit exceeded (100 MB)',
+      sizeLimitMsg: (name, sizeMb) => `Selected file "${name}" is ${sizeMb} MB. Maximum file size for processing is 100 MB.`,
+      sizeLimitHint: 'For long video recordings (1-2 hours), we recommend exporting audio-only to MP3 or M4A.',
+      hintPrefix: 'Hint:',
+      understoodBtn: 'Understood',
+      goodBtn: 'OK',
+      closeBtn: 'Close',
+      processingErrorTitle: 'Processing error',
+      serverError: (status) => `Server error: ${status}`,
+      unknownError: 'Unknown processing error',
+      errorHint: 'Check API key settings or try again.'
     }
   }
 };

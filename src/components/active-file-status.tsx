@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { FileText, X, Check, Loader2 } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { FileText, X, Check, Loader2, Maximize2, Minimize2, ArrowUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { OutputLanguage } from '@/lib/types';
@@ -10,6 +10,7 @@ import { TRANSLATIONS } from '@/lib/translations';
 interface ActiveFileStatusProps {
   fileName: string;
   fileSize: string;
+  submittedText?: string;
   progressPercent: number;
   onReset: () => void;
   activeMode?: 'file' | 'text';
@@ -21,6 +22,7 @@ interface ActiveFileStatusProps {
 export function ActiveFileStatus({
   fileName,
   fileSize,
+  submittedText = '',
   progressPercent,
   onReset,
   activeMode = 'file',
@@ -28,106 +30,182 @@ export function ActiveFileStatus({
   logStep = 4,
   currentLang = 'ru'
 }: ActiveFileStatusProps) {
+  const [isTextExpanded, setIsTextExpanded] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const t = TRANSLATIONS[currentLang]?.activeFile || TRANSLATIONS.ru.activeFile;
 
+  const textLabels = {
+    ru: {
+      expand: 'Развернуть',
+      collapse: 'Свернуть',
+      toTop: 'В начало',
+      words: 'слов',
+      chars: 'симв.',
+      step1: '...обработка текста'
+    },
+    kz: {
+      expand: 'Жаю',
+      collapse: 'Жию',
+      toTop: 'Басына',
+      words: 'сөз',
+      chars: 'таңба',
+      step1: '...мәтінді өңдеу'
+    },
+    en: {
+      expand: 'Expand',
+      collapse: 'Collapse',
+      toTop: 'To top',
+      words: 'words',
+      chars: 'chars',
+      step1: '...processing text'
+    }
+  }[currentLang] || {
+    expand: 'Развернуть',
+    collapse: 'Свернуть',
+    toTop: 'В начало',
+    words: 'слов',
+    chars: 'симв.',
+    step1: '...обработка текста'
+  };
+
   const LOGS = [
-    { step: 1, text: t.logs[0] },
+    { step: 1, text: activeMode === 'text' ? textLabels.step1 : t.logs[0] },
     { step: 2, text: t.logs[1] },
     { step: 3, text: t.logs[2] },
     { step: 4, text: t.logs[3] }
   ];
 
+  const displayText = submittedText || fileName;
+  const wordCount = displayText.trim() ? displayText.trim().split(/\s+/).filter(Boolean).length : 0;
+  const charCount = displayText.length;
+
   return (
-    <div className="w-full max-w-[880px] mx-auto flex flex-col items-center select-none">
-      {/* Top Toggle Switch with smooth Framer Motion sliding pill */}
-      <div className="w-[300px] h-[44px] rounded-full border border-[#2d2d2d] bg-[#1e1e1e] p-[3px] flex items-center mb-6 relative">
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.95 }}
-          onClick={() => onModeChange && onModeChange('file')}
-          className="relative flex-1 h-full rounded-full flex items-center justify-center gap-2 text-sm cursor-pointer"
-        >
-          {activeMode === 'file' && (
-            <motion.div
-              layoutId="activeStatusIndicator"
-              className="absolute inset-0 rounded-full bg-[#111111] border border-[#2c2c2c]"
-              transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-            />
-          )}
-          <FileText
-            className={`relative z-10 w-4 h-4 transition-colors duration-200 ${
-              activeMode === 'file' ? 'text-white' : 'text-neutral-400'
-            }`}
-          />
-          <span
-            className={`relative z-10 transition-colors duration-200 ${
-              activeMode === 'file' ? 'text-white font-normal' : 'text-neutral-400'
-            }`}
-          >
-            {t.tabFile}
-          </span>
-        </motion.button>
-
-        <div className="w-[1px] h-5 bg-[#3a3a3a] shrink-0 mx-0.5 z-10" />
-
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.95 }}
-          onClick={() => onModeChange && onModeChange('text')}
-          className="relative flex-1 h-full rounded-full flex items-center justify-center text-sm cursor-pointer"
-        >
-          {activeMode === 'text' && (
-            <motion.div
-              layoutId="activeStatusIndicator"
-              className="absolute inset-0 rounded-full bg-[#111111] border border-[#2c2c2c]"
-              transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-            />
-          )}
-          <span
-            className={`relative z-10 transition-colors duration-200 ${
-              activeMode === 'text' ? 'text-white font-normal' : 'text-neutral-400'
-            }`}
-          >
-            {t.tabText}
-          </span>
-        </motion.button>
-      </div>
-
+    <div
+      className={`w-full mx-auto flex flex-col items-center select-none transition-all duration-300 ${
+        activeMode === 'text' ? 'max-w-[880px]' : 'max-w-[620px]'
+      }`}
+    >
       {/* Outer container matching Figma design */}
-      <div className="w-full rounded-[24px] bg-[#191919] p-5 sm:p-6 border border-[#282828]/60">
-        {/* Inner Card with file info and progress bar inside */}
-        <div className="w-full rounded-[14px] sm:rounded-[16px] bg-[#282828] overflow-hidden flex flex-col justify-between">
-          <div className="flex items-center justify-between text-sm text-neutral-300 px-5 sm:px-6 pt-3.5 pb-2.5">
-            <span className="font-normal text-white truncate text-sm sm:text-base">
-              {fileName}
-            </span>
-
-            <div className="flex items-center gap-3.5 shrink-0">
-              <span className="text-xs sm:text-sm text-neutral-400">
-                {fileSize}
+      {activeMode === 'text' ? (
+        <div className="w-full rounded-[16px] bg-[#191919] p-2.5 sm:p-3 flex flex-col border border-[#282828]/60 transition-all">
+          <div className="w-full rounded-[12px] bg-[#111111] border border-[#2f2f2f] p-3.5 sm:p-4 transition-colors flex flex-col">
+            {/* Header toolbar */}
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#222222] text-xs text-neutral-400 select-none">
+              <span className="text-[12px] text-neutral-400">
+                {wordCount} {textLabels.words} • {charCount} {textLabels.chars}
               </span>
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.88 }}
-                whileHover={{ scale: 1.08 }}
-                onClick={onReset}
-                className="w-5.5 h-5.5 rounded-[4px] bg-[#d9383a] hover:bg-red-600 text-white flex items-center justify-center transition-colors cursor-pointer"
-                title="Cancel"
-              >
-                <X className="w-3.5 h-3.5 stroke-[2.5]" />
-              </motion.button>
+
+              <div className="flex items-center gap-1.5">
+                {charCount > 60 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (textareaRef.current) {
+                        textareaRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] bg-white/[0.04] hover:bg-white/[0.08] text-neutral-400 hover:text-white transition-colors cursor-pointer text-[11.5px]"
+                    title="Прокрутить к первым предложениям"
+                  >
+                    <ArrowUp className="w-3 h-3" />
+                    <span>{textLabels.toTop}</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsTextExpanded((prev) => {
+                      const next = !prev;
+                      if (next && textareaRef.current) {
+                        setTimeout(() => {
+                          if (textareaRef.current) {
+                            textareaRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                          }
+                        }, 50);
+                      }
+                      return next;
+                    });
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[6px] bg-white/[0.06] hover:bg-white/[0.12] text-neutral-300 hover:text-white transition-colors cursor-pointer text-[11.5px]"
+                >
+                  {isTextExpanded ? (
+                    <>
+                      <Minimize2 className="w-3 h-3 text-neutral-400" />
+                      <span>{textLabels.collapse}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Maximize2 className="w-3 h-3 text-neutral-400" />
+                      <span>{textLabels.expand}</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onReset}
+                  className="w-5 h-5 ml-1 rounded-[4px] bg-[#d9383a] hover:bg-red-600 text-white p-0 flex items-center justify-center transition-colors cursor-pointer"
+                  title="Отменить"
+                >
+                  <X className="w-3.5 h-3.5 stroke-[2.5] block" />
+                </button>
+              </div>
+            </div>
+
+            <textarea
+              ref={textareaRef}
+              readOnly
+              rows={isTextExpanded ? 14 : 4}
+              value={displayText}
+              className={`w-full bg-transparent border-0 outline-none resize-none text-sm text-neutral-200 leading-relaxed font-sans cursor-default transition-[min-height] duration-200 ${
+                isTextExpanded ? 'min-h-[280px] max-h-[420px]' : 'min-h-[96px] max-h-[140px]'
+              }`}
+            />
+
+            {/* Dynamic progress bar at the bottom */}
+            <div className="w-full h-1 bg-[#1e1e1e] overflow-hidden mt-3 rounded-full">
+              <div
+                className="h-full bg-[#22c55e] transition-all duration-400 ease-out"
+                style={{ width: `${progressPercent}%` }}
+              />
             </div>
           </div>
+        </div>
+      ) : (
+        <div className="w-full rounded-[16px] bg-[#191919] p-4.5 sm:p-5 border border-[#282828]/60">
+          {/* Inner Card with file info and progress bar inside */}
+          <div className="w-full rounded-[10px] sm:rounded-[12px] bg-[#282828] overflow-hidden flex flex-col justify-between">
+            <div className="flex items-center justify-between text-sm text-neutral-300 px-5 sm:px-6 pt-3.5 pb-2.5">
+              <span className="font-normal text-white truncate text-sm sm:text-base">
+                {fileName}
+              </span>
 
-          {/* Green progress bar with uncompleted white portion at the bottom of the inner card */}
-          <div className="w-full h-1 bg-white overflow-hidden">
-            <div
-              className="h-full bg-[#22c55e] transition-all duration-400 ease-out"
-              style={{ width: `${progressPercent}%` }}
-            />
+              <div className="flex items-center gap-3.5 shrink-0">
+                <span className="text-xs sm:text-sm text-neutral-400">
+                  {fileSize}
+                </span>
+                <button
+                  type="button"
+                  onClick={onReset}
+                  className="w-5 h-5 rounded-[4px] bg-[#d9383a] hover:bg-red-600 text-white p-0 flex items-center justify-center transition-colors cursor-pointer"
+                  title="Cancel"
+                >
+                  <X className="w-3.5 h-3.5 stroke-[2.5] block" />
+                </button>
+              </div>
+            </div>
+
+            {/* Green progress bar with uncompleted white portion at the bottom of the inner card */}
+            <div className="w-full h-1 bg-white overflow-hidden">
+              <div
+                className="h-full bg-[#22c55e] transition-all duration-400 ease-out"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Under Progress Box Step Logs - only appears AFTER the file finishes uploading (logStep >= 1) */}
       <div className="w-full mt-4 flex flex-col gap-2 text-sm font-normal pl-2 min-h-[90px]">

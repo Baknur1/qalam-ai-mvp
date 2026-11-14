@@ -6,7 +6,14 @@
     --foreground: #ffffff;
   }
 
-  *, *::before, *::after, body, input, button, textarea, select {
+  *,
+  *::before,
+  *::after,
+  body,
+  input,
+  button,
+  textarea,
+  select {
     font-family: var(--font-comfortaa), 'Comfortaa', cursive, system-ui, sans-serif !important;
   }
 
@@ -17,12 +24,7 @@
   }
 }
 
-/* Desktop / Tablet compact mode (zoom: 0.9 centered) */
-@media (min-width: 641px) {
-  html {
-    zoom: 0.9;
-  }
-}
+
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {
@@ -30,7 +32,8 @@
   height: 0px;
 }
 
-html, body {
+html,
+body {
   overflow-x: hidden;
 }
 
@@ -198,5 +201,3 @@ html, body {
   padding: 0.1rem 0.35rem;
   border-radius: 0.25rem;
 }
-
-

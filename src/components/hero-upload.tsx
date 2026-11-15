@@ -174,8 +174,10 @@ export function HeroUpload({
         // На Vercel при файлах > 4 МБ используем direct upload в Vercel Blob
         if (fileToUpload.size > 4 * 1024 * 1024) {
           try {
-            const blobResult = await vercelBlobUpload(fileToUpload.name, fileToUpload, {
-              access: 'public',
+            // Безопасное имя файла без спецсимволов для URL
+            const cleanSafeName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const blobResult = await vercelBlobUpload(cleanSafeName, fileToUpload, {
+              access: 'private',
               handleUploadUrl: '/api/blob/upload'
             });
             if (blobResult && blobResult.url) {

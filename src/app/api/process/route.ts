@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { get as getVercelBlob } from '@vercel/blob';
 import { MOCK_PIPELINE_RESULT } from '@/lib/mock-data';
 import {
   processWithGemini,
@@ -127,13 +128,40 @@ export async function POST(req: NextRequest) {
         removeUpload(uploadId);
       }
     } else if (blobUrl) {
-      // Download directly from Vercel Blob into memory
+      // Download directly from Vercel Blob into memory (supports both private and public blobs)
       try {
-        const blobRes = await fetch(blobUrl);
-        if (blobRes.ok) {
-          audioBuffer = Buffer.from(await blobRes.arrayBuffer());
+        let blobStream: ReadableStream | null = null;
+        let contentTypeHeader = '';
+
+        try {
+          // Попытка 1: чтение через SDK getVercelBlob (для Private Blob с токеном)
+          const parsedUrl = new URL(blobUrl);
+          const pathname = parsedUrl.pathname.replace(/^\//, '');
+          const blobData = await getVercelBlob(pathname, { access: 'private' });
+          if (blobData && blobData.stream) {
+            blobStream = blobData.stream;
+            contentTypeHeader = blobData.headers?.get('content-type') || blobData.blob?.contentType || '';
+          }
+        } catch {
+          // Попытка 2: прямой fetch (если ссылка доступна)
+          const blobRes = await fetch(blobUrl);
+          if (blobRes.ok && blobRes.body) {
+            blobStream = blobRes.body;
+            contentTypeHeader = blobRes.headers.get('content-type') || '';
+          }
+        }
+
+        if (blobStream) {
+          const reader = blobStream.getReader();
+          const chunks: Uint8Array[] = [];
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) chunks.push(value);
+          }
+          audioBuffer = Buffer.concat(chunks);
           fileSize = audioBuffer.length;
-          mimeType = blobRes.headers.get('content-type') || '';
+          mimeType = contentTypeHeader;
           try {
             const parsedUrl = new URL(blobUrl);
             fileName = decodeURIComponent(parsedUrl.pathname.split('/').pop() || 'audio');

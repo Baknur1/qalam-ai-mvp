@@ -178,7 +178,8 @@ export function HeroUpload({
             const cleanSafeName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, '_');
             const blobResult = await vercelBlobUpload(cleanSafeName, fileToUpload, {
               access: 'private',
-              handleUploadUrl: '/api/blob/upload'
+              handleUploadUrl: '/api/blob/upload',
+              addRandomSuffix: true
             });
             if (blobResult && blobResult.url) {
               setBlobUrl(blobResult.url);

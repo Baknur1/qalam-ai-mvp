@@ -8,7 +8,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const jsonResponse = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async () => {
+      onBeforeGenerateToken: async (pathname) => {
         return {
           allowedContentTypes: [
             'audio/mpeg',
@@ -24,7 +24,8 @@ export async function POST(request: Request): Promise<NextResponse> {
             'video/webm',
             'video/quicktime'
           ],
-          maximumSizeInBytes: 500 * 1024 * 1024 // 500 MB
+          maximumSizeInBytes: 500 * 1024 * 1024, // 500 MB
+          tokenPayload: JSON.stringify({ pathname })
         };
       },
       onUploadCompleted: async () => {
@@ -34,9 +35,12 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     return NextResponse.json(jsonResponse);
   } catch (error) {
+    console.error('[Vercel Blob Upload Route Error]:', error);
     return NextResponse.json(
       { error: (error as Error).message },
       { status: 400 }
     );
   }
 }
+
+

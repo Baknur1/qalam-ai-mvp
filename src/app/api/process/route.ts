@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
     let sourceText = '';
     let audioFile: File | null = null;
     let uploadId = '';
+    let blobUrl = '';
     let customGeminiKey = '';
     let customGroqKey = '';
 
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
       const formData = await req.formData();
       audioFile = formData.get('audio') as File | null;
       uploadId = (formData.get('uploadId') as string) || '';
+      blobUrl = (formData.get('blobUrl') as string) || '';
       sourceText = (formData.get('text') as string) || '';
       isMock = formData.get('useMock') === 'true';
       customGeminiKey = (formData.get('geminiKey') as string) || '';
@@ -56,6 +58,7 @@ export async function POST(req: NextRequest) {
     } else {
       const body = await req.json();
       uploadId = body.uploadId || '';
+      blobUrl = body.blobUrl || '';
       sourceText = body.text || '';
       isMock = body.useMock || false;
       customGeminiKey = body.geminiKey || '';
@@ -66,7 +69,7 @@ export async function POST(req: NextRequest) {
     const effectiveGroqKey = customGroqKey || process.env.GROQ_API_KEY;
 
     // Fast-path: Explicit Mock mode or missing Gemini key
-    if (isMock || (!effectiveGeminiKey && !sourceText && !audioFile && !uploadId)) {
+    if (isMock || (!effectiveGeminiKey && !sourceText && !audioFile && !uploadId && !blobUrl)) {
       const mockData = {
         ...MOCK_PIPELINE_RESULT,
         id: `demo-${Date.now()}`,
@@ -122,6 +125,33 @@ export async function POST(req: NextRequest) {
           cachedSttPromise = cached.sttPromise;
         }
         removeUpload(uploadId);
+      }
+    } else if (blobUrl) {
+      // Download directly from Vercel Blob into memory
+      try {
+        const blobRes = await fetch(blobUrl);
+        if (blobRes.ok) {
+          audioBuffer = Buffer.from(await blobRes.arrayBuffer());
+          fileSize = audioBuffer.length;
+          mimeType = blobRes.headers.get('content-type') || '';
+          try {
+            const parsedUrl = new URL(blobUrl);
+            fileName = decodeURIComponent(parsedUrl.pathname.split('/').pop() || 'audio');
+          } catch {
+            fileName = 'audio';
+          }
+          if (!mimeType) {
+            const name = fileName.toLowerCase();
+            if (name.endsWith('.mp4')) mimeType = 'video/mp4';
+            else if (name.endsWith('.mov')) mimeType = 'video/quicktime';
+            else if (name.endsWith('.webm')) mimeType = 'video/webm';
+            else if (name.endsWith('.wav')) mimeType = 'audio/wav';
+            else if (name.endsWith('.m4a')) mimeType = 'audio/m4a';
+            else mimeType = 'audio/mp3';
+          }
+        }
+      } catch (err) {
+        console.error('[Process] Error fetching Vercel Blob:', err);
       }
     } else if (audioFile && audioFile.size > 0) {
       audioBuffer = Buffer.from(await audioFile.arrayBuffer());

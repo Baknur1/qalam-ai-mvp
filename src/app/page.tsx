@@ -291,6 +291,7 @@ export default function Home() {
     text?: string;
     audioFile?: File;
     uploadId?: string;
+    blobUrl?: string;
     useMock?: boolean;
     mode?: 'file' | 'text';
   }) => {
@@ -339,9 +340,9 @@ export default function Home() {
     // ==========================================
     // PATH A: REAL MODE (Call Next.js API Route with SSE Streaming)
     // ==========================================
-    if (!options.useMock && (options.text || options.audioFile || options.uploadId)) {
+    if (!options.useMock && (options.text || options.audioFile || options.uploadId || options.blobUrl)) {
       try {
-        const hasPreupload = Boolean(options.uploadId);
+        const hasPreupload = Boolean(options.uploadId || options.blobUrl);
         setDemoPhase(hasPreupload ? 'decrypting' : 'uploading');
         setProgressPercent(hasPreupload ? 30 : 15);
         setLogStep(hasPreupload ? 1 : 0);
@@ -349,6 +350,8 @@ export default function Home() {
         const formData = new FormData();
         if (options.uploadId) {
           formData.append('uploadId', options.uploadId);
+        } else if (options.blobUrl) {
+          formData.append('blobUrl', options.blobUrl);
         } else if (options.audioFile) {
           formData.append('audio', options.audioFile);
         }

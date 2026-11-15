@@ -7,12 +7,14 @@ import { OutputLanguage } from '@/lib/types';
 import { TRANSLATIONS } from '@/lib/translations';
 import { AlertModal } from './alert-modal';
 import { extractAudioFromMedia } from '@/lib/audio-extractor';
+import { upload as vercelBlobUpload } from '@vercel/blob/client';
 
 interface HeroUploadProps {
   onProcess: (options: {
     text?: string;
     audioFile?: File;
     uploadId?: string;
+    blobUrl?: string;
     useMock?: boolean;
     mode?: 'file' | 'text';
   }) => void;
@@ -37,7 +39,8 @@ export function HeroUpload({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadState, setUploadState] = useState<'idle' | 'extracting' | 'uploading' | 'ready' | 'error'>('idle');
   const [preUploadedId, setPreUploadedId] = useState<string | null>(null);
-  const preUploadPromiseRef = useRef<Promise<string | null> | null>(null);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const preUploadPromiseRef = useRef<Promise<{ uploadId?: string; blobUrl?: string } | null> | null>(null);
   const extractedFileRef = useRef<File | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -123,6 +126,7 @@ export function HeroUpload({
     setSelectedFile(file);
     extractedFileRef.current = null;
     setPreUploadedId(null);
+    setBlobUrl(null);
     setUploadProgress(10);
 
     if (abortControllerRef.current) {
@@ -167,6 +171,24 @@ export function HeroUpload({
         setUploadState('uploading');
         setUploadProgress(50);
 
+        // На Vercel при файлах > 4 МБ используем direct upload в Vercel Blob
+        if (fileToUpload.size > 4 * 1024 * 1024) {
+          try {
+            const blobResult = await vercelBlobUpload(fileToUpload.name, fileToUpload, {
+              access: 'public',
+              handleUploadUrl: '/api/blob/upload'
+            });
+            if (blobResult && blobResult.url) {
+              setBlobUrl(blobResult.url);
+              setUploadState('ready');
+              setUploadProgress(100);
+              return { blobUrl: blobResult.url };
+            }
+          } catch (blobErr) {
+            console.warn('[Vercel Blob] Upload error, falling back to standard API route:', blobErr);
+          }
+        }
+
         const formData = new FormData();
         formData.append('file', fileToUpload);
 
@@ -185,7 +207,7 @@ export function HeroUpload({
           setPreUploadedId(data.uploadId);
           setUploadState('ready');
           setUploadProgress(100);
-          return data.uploadId as string;
+          return { uploadId: data.uploadId as string };
         }
         return null;
       } catch (err: unknown) {
@@ -204,19 +226,26 @@ export function HeroUpload({
     if (!selectedFile) return;
 
     let uploadId = preUploadedId;
-    if (!uploadId && preUploadPromiseRef.current) {
+    let currentBlobUrl = blobUrl;
+    if (!uploadId && !currentBlobUrl && preUploadPromiseRef.current) {
       try {
         setUploadState('uploading');
-        uploadId = await preUploadPromiseRef.current;
+        const res = await preUploadPromiseRef.current;
+        if (res) {
+          uploadId = res.uploadId || null;
+          currentBlobUrl = res.blobUrl || null;
+        }
       } catch {
         uploadId = null;
+        currentBlobUrl = null;
       }
     }
 
     const fileToSend = extractedFileRef.current || selectedFile;
     onProcess({
-      audioFile: fileToSend,
+      audioFile: currentBlobUrl ? undefined : fileToSend,
       uploadId: uploadId || undefined,
+      blobUrl: currentBlobUrl || undefined,
       mode: 'file',
       useMock: false
     });

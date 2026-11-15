@@ -7,11 +7,13 @@ import { ActiveFileStatus } from '@/components/active-file-status';
 import { FactCheckingSection } from '@/components/fact-checking-section';
 import { LeadDraftSection } from '@/components/lead-draft-section';
 import { MultiPlatformExport } from '@/components/multi-platform-export';
+import { PricingTable } from '@/components/pricing-table';
 import { AlertModal } from '@/components/alert-modal';
-import { MOCK_PIPELINE_RESULT } from '@/lib/mock-data';
+import { MOCK_PIPELINE_RESULT, EMPTY_PIPELINE_RESULT, DEFAULT_DEMO_FILE } from '@/lib/mock-data';
 import { PipelineResult, OutputLanguage, FactStatus, QuickFixType, FactCheckItem } from '@/lib/types';
 import { FACT_CHECK_ITEMS } from '@/lib/fact-checking-data';
 import { TRANSLATIONS } from '@/lib/translations';
+import { runDemoSimulation } from '@/lib/demo-simulation';
 
 type DemoPhase =
   | 'idle'
@@ -21,29 +23,6 @@ type DemoPhase =
   | 'drafting'
   | 'exporting'
   | 'ready';
-
-const EMPTY_PIPELINE_RESULT: PipelineResult = {
-  id: '',
-  title: '',
-  sourceLang: 'ru',
-  rawTranscriptText: '',
-  transcript: [],
-  factCheckItems: [],
-  flags: [],
-  outputs: {
-    ru: { web_article: '', telegram_post: '', social_script: '' },
-    kz: { web_article: '', telegram_post: '', social_script: '' },
-    en: { web_article: '', telegram_post: '', social_script: '' }
-  },
-  isMock: false,
-  createdAt: '',
-  stats: {
-    wordCount: 0,
-    totalFlags: 0,
-    verifiedFlags: 0,
-    processingTimeSec: 0
-  }
-};
 
 export default function Home() {
   const [pipelineData, setPipelineData] = useState<PipelineResult>(EMPTY_PIPELINE_RESULT);
@@ -55,8 +34,8 @@ export default function Home() {
   const [visibleFactCards, setVisibleFactCards] = useState(0); // 0 to 4
   const [streamedDraftText, setStreamedDraftText] = useState('');
   const [streamedExportText, setStreamedExportText] = useState('');
-  const [fileName, setFileName] = useState('Someinterview_file.mp4');
-  const [fileSize, setFileSize] = useState('10.5 mb');
+  const [fileName, setFileName] = useState(DEFAULT_DEMO_FILE.name);
+  const [fileSize, setFileSize] = useState(DEFAULT_DEMO_FILE.size);
   const [submittedText, setSubmittedText] = useState('');
   const [activeMode, setActiveMode] = useState<'file' | 'text'>('file');
   const [activeTabInHero, setActiveTabInHero] = useState<'file' | 'text'>('file');
@@ -71,12 +50,7 @@ export default function Home() {
   } | null>(null);
 
   // Human-in-the-Loop Fact Checking & Cross-Highlighting State
-  const [factDecisions, setFactDecisions] = useState<Record<string, FactStatus>>({
-    'fc-1': 'approved',
-    'fc-2': 'pending',
-    'fc-3': 'pending',
-    'fc-4': 'pending'
-  });
+  const [factDecisions, setFactDecisions] = useState<Record<string, FactStatus>>({});
   const [hoveredFactId, setHoveredFactId] = useState<string | null>(null);
   const [selectedFactId, setSelectedFactId] = useState<string | null>(null);
   const timersRef = useRef<NodeJS.Timeout[]>([]);
@@ -201,6 +175,117 @@ export default function Home() {
     }));
   };
 
+  // Background translation trigger: seamlessly populates KZ and ENG in the background
+  const triggerBackgroundTranslations = (result: PipelineResult) => {
+    const primaryArticle = result.outputs.ru?.web_article || result.outputs[currentLang]?.web_article;
+    if (!primaryArticle) return;
+
+    const facts = result.factCheckItems || [];
+    const targetPhrasesRu = facts.map(
+      (f) => f.targetPhrases?.ru || f.highlightedFact || ''
+    );
+    const targetFixesRu = facts.map(
+      (f) => f.fixes?.ru?.replacement || ''
+    );
+
+    const targetLangs: ('kz' | 'en')[] = ['kz', 'en'];
+
+    targetLangs.forEach(async (targetLang) => {
+      const ruArticle = (result.outputs.ru?.web_article || '').trim();
+      const currentTargetArticle = (result.outputs[targetLang]?.web_article || '').trim();
+      // If language already has a real translated article (not empty and not Russian fallback), skip
+      if (currentTargetArticle && currentTargetArticle !== ruArticle) return;
+
+      try {
+        const transRes = await fetch('/api/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            article: primaryArticle,
+            telegram: result.outputs.ru?.telegram_post || result.outputs[currentLang]?.telegram_post || '',
+            scenario: result.outputs.ru?.social_script || result.outputs[currentLang]?.social_script || '',
+            targetPhrases: targetPhrasesRu,
+            targetFixes: targetFixesRu,
+            facts,
+            targetLang
+          })
+        });
+
+        if (!transRes.ok) return;
+        const transData = await transRes.json();
+        if (!transData.outputs) return;
+
+        setPipelineData((prev) => {
+          const updatedOutputs = {
+            ...prev.outputs,
+            [targetLang]: transData.outputs
+          };
+
+          const prevFacts = prev.factCheckItems || [];
+          const updatedFacts = prevFacts.map((fact, idx) => {
+            const tf =
+              transData.translatedFacts?.find((f: { id: string }) => f.id === fact.id) ||
+              transData.translatedFacts?.[idx];
+
+            return {
+              ...fact,
+              targetPhrases: {
+                ...fact.targetPhrases,
+                [targetLang]:
+                  transData.translatedPhrases?.[idx] ||
+                  fact.targetPhrases?.[targetLang] ||
+                  fact.targetPhrases?.ru ||
+                  fact.highlightedFact
+              },
+              fixes: {
+                ...fact.fixes,
+                [targetLang]: {
+                  replacement:
+                    transData.translatedFixes?.[idx] ||
+                    fact.fixes?.[targetLang]?.replacement ||
+                    fact.fixes?.ru?.replacement ||
+                    '',
+                  footnote:
+                    fact.fixes?.[targetLang]?.footnote ||
+                    fact.fixes?.ru?.footnote ||
+                    ''
+                }
+              },
+              translations: {
+                ...fact.translations,
+                [targetLang]: {
+                  speaker: tf?.speaker || fact.speaker,
+                  textBefore: tf?.textBefore || fact.textBefore,
+                  underlinedPhrase: fact.underlinedPhrase,
+                  textMid: '',
+                  highlightedFact: tf?.highlightedFact || fact.highlightedFact,
+                  textAfter: tf?.textAfter || fact.textAfter,
+                  factCheckInfo: {
+                    ...fact.factCheckInfo,
+                    title: tf?.factCheckInfo?.title || fact.factCheckInfo.title,
+                    claimed: tf?.factCheckInfo?.claimed || fact.factCheckInfo.claimed,
+                    verified: tf?.factCheckInfo?.verified || fact.factCheckInfo.verified,
+                    suggestedFix: tf?.factCheckInfo?.suggestedFix || fact.factCheckInfo.suggestedFix,
+                    source: fact.factCheckInfo.source,
+                    sourceUrl: (fact.factCheckInfo as any).sourceUrl
+                  }
+                }
+              }
+            };
+          });
+
+          return {
+            ...prev,
+            outputs: updatedOutputs,
+            factCheckItems: updatedFacts
+          };
+        });
+      } catch (err) {
+        console.warn(`[Background Translate] Failed for ${targetLang}:`, err);
+      }
+    });
+  };
+
   // Main process trigger: connects real API or runs demo simulation
   const handleProcess = async (options: {
     text?: string;
@@ -214,6 +299,7 @@ export default function Home() {
     setIsDemoMode(isMock);
     setActiveScreen('results');
     setIsProcessing(true);
+    setFactDecisions({});
     setVisibleFactCards(0);
     setStreamedDraftText('');
     setStreamedExportText('');
@@ -251,13 +337,13 @@ export default function Home() {
     }
 
     // ==========================================
-    // PATH A: REAL MODE (Call Next.js API Route)
+    // PATH A: REAL MODE (Call Next.js API Route with SSE Streaming)
     // ==========================================
     if (!options.useMock && (options.text || options.audioFile || options.uploadId)) {
       try {
         const hasPreupload = Boolean(options.uploadId);
         setDemoPhase(hasPreupload ? 'decrypting' : 'uploading');
-        setProgressPercent(hasPreupload ? 40 : 20);
+        setProgressPercent(hasPreupload ? 30 : 15);
         setLogStep(hasPreupload ? 1 : 0);
 
         const formData = new FormData();
@@ -270,29 +356,111 @@ export default function Home() {
           formData.append('text', options.text);
         }
 
-        // Animated progression while waiting for network response
-        const t1 = setTimeout(() => {
-          setProgressPercent(50);
-          setDemoPhase('decrypting');
-          setLogStep(1); // '...transcribing / decrypting'
-        }, hasPreupload ? 300 : 800);
-
-        const t2 = setTimeout(() => {
-          setProgressPercent(75);
-          setDemoPhase('factchecking');
-          setLogStep(2); // '...fact checking'
-        }, hasPreupload ? 1500 : 2200);
-
-        timersRef.current.push(t1, t2);
-
-        const res = await fetch('/api/process', {
+        const res = await fetch('/api/process?stream=true', {
           method: 'POST',
+          headers: {
+            Accept: 'text/event-stream'
+          },
           body: formData
         });
 
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.error || alerts.serverError(res.status));
+        }
+
+        const contentType = res.headers.get('content-type') || '';
+
+        if (contentType.includes('text/event-stream') && res.body) {
+          clearAllTimers();
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let sseBuffer = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            sseBuffer += decoder.decode(value, { stream: true });
+            const events = sseBuffer.split('\n\n');
+            sseBuffer = events.pop() || '';
+
+            for (const eventBlock of events) {
+              const lines = eventBlock.split('\n');
+              let eventName = 'message';
+              let eventData = '';
+
+              for (const line of lines) {
+                if (line.startsWith('event:')) {
+                  eventName = line.slice(6).trim();
+                } else if (line.startsWith('data:')) {
+                  eventData = line.slice(5).trim();
+                }
+              }
+
+              if (!eventData) continue;
+
+              try {
+                const payload = JSON.parse(eventData);
+
+                if (eventName === 'step') {
+                  setLogStep(payload.step);
+                  if (payload.step === 1) {
+                    setDemoPhase('decrypting');
+                    setProgressPercent(35);
+                  } else if (payload.step === 2) {
+                    setDemoPhase('factchecking');
+                    setProgressPercent(60);
+                  }
+                } else if (eventName === 'fact' && payload.fact) {
+                  // A new fact item was verified in real time!
+                  const newFact = payload.fact as FactCheckItem;
+                  setPipelineData((prev) => {
+                    const currentItems = prev.factCheckItems || [];
+                    const exists = currentItems.some((f) => f.id === newFact.id);
+                    if (exists) return prev;
+                    return {
+                      ...prev,
+                      factCheckItems: [...currentItems, newFact]
+                    };
+                  });
+                  setVisibleFactCards((prev) => prev + 1);
+                  setFactDecisions((prev) => ({
+                    ...prev,
+                    [newFact.id]: prev[newFact.id] || 'pending'
+                  }));
+                  setDemoPhase('factchecking');
+                  setProgressPercent((p) => Math.min(85, Math.max(p, 65) + 3));
+                } else if (eventName === 'draft_chunk' && payload.chunk) {
+                  setStreamedDraftText((prev) => prev + payload.chunk);
+                  setDemoPhase('drafting');
+                  setLogStep(3);
+                  setProgressPercent((p) => Math.min(95, Math.max(p, 75) + 1));
+                } else if (eventName === 'complete' && payload.result) {
+                  const finalData = payload.result as PipelineResult;
+                  setPipelineData(finalData);
+                  setStreamedDraftText(
+                    finalData.outputs[currentLang]?.web_article ||
+                    finalData.outputs.ru?.web_article ||
+                    ''
+                  );
+                  setVisibleFactCards(finalData.factCheckItems?.length || 0);
+                  setDemoPhase('ready');
+                  setLogStep(4);
+                  setProgressPercent(100);
+                  setIsProcessing(false);
+
+                  // Trigger background translation for KZ and EN
+                  triggerBackgroundTranslations(finalData);
+                } else if (eventName === 'error') {
+                  throw new Error(payload.error || 'Ошибка генерации');
+                }
+              } catch (parseErr) {
+                if (eventName === 'error') throw parseErr;
+              }
+            }
+          }
+          return;
         }
 
         const data: PipelineResult = await res.json();
@@ -312,51 +480,12 @@ export default function Home() {
           setFactDecisions(initialDecisions);
         }
 
-        // Start drafting typewriter streaming
-        setDemoPhase('drafting');
-        setLogStep(3);
-        setProgressPercent(88);
-
-        const targetDraft = data.outputs[currentLang]?.web_article || data.outputs.ru?.web_article || '';
-        let charIndex = 0;
-        const streamTimer = setInterval(() => {
-          charIndex += 26;
-          if (charIndex >= targetDraft.length) {
-            setStreamedDraftText(targetDraft);
-            clearInterval(streamTimer);
-
-            // Move to export phase
-            setDemoPhase('exporting');
-            setLogStep(4);
-            setProgressPercent(100);
-
-            const targetExport =
-              data.outputs[currentLang]?.web_article ||
-              data.outputs.en?.web_article ||
-              '';
-
-            let exportIndex = 0;
-            const streamExportTimer = setInterval(() => {
-              exportIndex += 26;
-              if (exportIndex >= targetExport.length) {
-                setStreamedExportText(targetExport);
-                clearInterval(streamExportTimer);
-
-                const tReady = setTimeout(() => {
-                  setDemoPhase('ready');
-                  setIsProcessing(false);
-                }, 300);
-                timersRef.current.push(tReady);
-              } else {
-                setStreamedExportText(targetExport.slice(0, exportIndex));
-              }
-            }, 18);
-            timersRef.current.push(streamExportTimer as unknown as NodeJS.Timeout);
-          } else {
-            setStreamedDraftText(targetDraft.slice(0, charIndex));
-          }
-        }, 18);
-        timersRef.current.push(streamTimer as unknown as NodeJS.Timeout);
+        setStreamedDraftText(data.outputs[currentLang]?.web_article || data.outputs.ru?.web_article || '');
+        setDemoPhase('ready');
+        setLogStep(4);
+        setProgressPercent(100);
+        setIsProcessing(false);
+        triggerBackgroundTranslations(data);
         return;
       } catch (err: unknown) {
         clearAllTimers();
@@ -378,145 +507,20 @@ export default function Home() {
     // ==========================================
     // PATH B: DEMO MODE (Fast Interactive Simulation)
     // ==========================================
-    if (isFile) {
-      setDemoPhase('uploading');
-      setProgressPercent(0);
-      setLogStep(0);
-
-      const tUp1 = setTimeout(() => setProgressPercent(35), 250);
-      const tUp2 = setTimeout(() => setProgressPercent(75), 600);
-      const tUp3 = setTimeout(() => setProgressPercent(100), 950);
-      timersRef.current.push(tUp1, tUp2, tUp3);
-
-      const tProc = setTimeout(() => {
-        setDemoPhase('decrypting');
-        setLogStep(1);
-
-        const tFact = setTimeout(() => {
-          setDemoPhase('factchecking');
-          setLogStep(2);
-
-          const tCard1 = setTimeout(() => setVisibleFactCards(1), 200);
-          const tCard2 = setTimeout(() => setVisibleFactCards(2), 400);
-          const tCard3 = setTimeout(() => setVisibleFactCards(3), 600);
-          const tCard4 = setTimeout(() => setVisibleFactCards(4), 800);
-          timersRef.current.push(tCard1, tCard2, tCard3, tCard4);
-
-          const tDraft = setTimeout(() => {
-            setDemoPhase('drafting');
-            setLogStep(3);
-
-            let charIndex = 0;
-            const targetText = fullDraftText;
-            const streamTimer = setInterval(() => {
-              charIndex += 22;
-              if (charIndex >= targetText.length) {
-                setStreamedDraftText(targetText);
-                clearInterval(streamTimer);
-
-                setDemoPhase('exporting');
-                setLogStep(4);
-
-                let exportIndex = 0;
-                const targetExport =
-                  pipelineData.outputs[currentLang]?.web_article ||
-                  pipelineData.outputs.en?.web_article ||
-                  '';
-
-                const streamExportTimer = setInterval(() => {
-                  exportIndex += 22;
-                  if (exportIndex >= targetExport.length) {
-                    setStreamedExportText(targetExport);
-                    clearInterval(streamExportTimer);
-
-                    const tComplete = setTimeout(() => {
-                      setDemoPhase('ready');
-                      setIsProcessing(false);
-                    }, 400);
-                    timersRef.current.push(tComplete);
-                  } else {
-                    setStreamedExportText(targetExport.slice(0, exportIndex));
-                  }
-                }, 25);
-                timersRef.current.push(streamExportTimer as unknown as NodeJS.Timeout);
-              } else {
-                setStreamedDraftText(targetText.slice(0, charIndex));
-              }
-            }, 25);
-            timersRef.current.push(streamTimer as unknown as NodeJS.Timeout);
-          }, 1000);
-          timersRef.current.push(tDraft);
-        }, 800);
-        timersRef.current.push(tFact);
-      }, 1100);
-      timersRef.current.push(tProc);
-    } else {
-      setDemoPhase('uploading');
-      setProgressPercent(100);
-      setLogStep(0);
-
-      const tTextProc = setTimeout(() => {
-        setDemoPhase('decrypting');
-        setLogStep(1);
-
-        const tFact = setTimeout(() => {
-          setDemoPhase('factchecking');
-          setLogStep(2);
-          const tCard1 = setTimeout(() => setVisibleFactCards(1), 150);
-          const tCard2 = setTimeout(() => setVisibleFactCards(2), 350);
-          const tCard3 = setTimeout(() => setVisibleFactCards(3), 550);
-          const tCard4 = setTimeout(() => setVisibleFactCards(4), 750);
-          timersRef.current.push(tCard1, tCard2, tCard3, tCard4);
-
-          const tDraft = setTimeout(() => {
-            setDemoPhase('drafting');
-            setLogStep(3);
-
-            let charIndex = 0;
-            const targetText = fullDraftText;
-            const streamTimer = setInterval(() => {
-              charIndex += 22;
-              if (charIndex >= targetText.length) {
-                setStreamedDraftText(targetText);
-                clearInterval(streamTimer);
-
-                setDemoPhase('exporting');
-                setLogStep(4);
-
-                let exportIndex = 0;
-                const targetExport =
-                  pipelineData.outputs[currentLang]?.web_article ||
-                  pipelineData.outputs.en?.web_article ||
-                  '';
-
-                const streamExportTimer = setInterval(() => {
-                  exportIndex += 22;
-                  if (exportIndex >= targetExport.length) {
-                    setStreamedExportText(targetExport);
-                    clearInterval(streamExportTimer);
-
-                    const tComplete = setTimeout(() => {
-                      setDemoPhase('ready');
-                      setIsProcessing(false);
-                    }, 400);
-                    timersRef.current.push(tComplete);
-                  } else {
-                    setStreamedExportText(targetExport.slice(0, exportIndex));
-                  }
-                }, 25);
-                timersRef.current.push(streamExportTimer as unknown as NodeJS.Timeout);
-              } else {
-                setStreamedDraftText(targetText.slice(0, charIndex));
-              }
-            }, 25);
-            timersRef.current.push(streamTimer as unknown as NodeJS.Timeout);
-          }, 900);
-          timersRef.current.push(tDraft);
-        }, 750);
-        timersRef.current.push(tFact);
-      }, 300);
-      timersRef.current.push(tTextProc);
-    }
+    runDemoSimulation({
+      isFile,
+      fullDraftText,
+      pipelineData,
+      currentLang,
+      setDemoPhase,
+      setProgressPercent,
+      setLogStep,
+      setVisibleFactCards,
+      setStreamedDraftText,
+      setStreamedExportText,
+      setIsProcessing,
+      timersRef
+    });
   };
 
   const handleReset = () => {
@@ -570,13 +574,16 @@ export default function Home() {
       {/* Main Content Area */}
       <main className="flex-1 w-full max-w-[1520px] mx-auto px-4 sm:px-6 lg:px-8 pt-3 sm:pt-4 pb-8 sm:pb-10">
         {activeScreen === 'hero' ? (
-          <HeroUpload
-            onProcess={handleProcess}
-            isProcessing={isProcessing}
-            activeTab={activeTabInHero}
-            onTabChange={(tab) => setActiveTabInHero(tab)}
-            currentLang={currentLang}
-          />
+          <div className="w-full flex flex-col items-center">
+            <HeroUpload
+              onProcess={handleProcess}
+              isProcessing={isProcessing}
+              activeTab={activeTabInHero}
+              onTabChange={(tab) => setActiveTabInHero(tab)}
+              currentLang={currentLang}
+            />
+            <PricingTable currentLang={currentLang} />
+          </div>
         ) : (
           <div className="w-full flex flex-col space-y-10">
             {/* Active File Banner with sequential logs */}

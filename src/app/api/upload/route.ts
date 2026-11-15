@@ -32,10 +32,7 @@ export async function POST(req: NextRequest) {
     if (groqKey && file.size <= 24 * 1024 * 1024 && !mimeType.startsWith('video/')) {
       try {
         console.log(`[Pre-Upload] Starting background Groq STT for ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB)...`);
-        // Wrap buffer into a File for Groq SDK
-        const audioBlob = new Blob([new Uint8Array(buffer)], { type: mimeType });
-        const audioFileForGroq = new File([audioBlob], file.name, { type: mimeType });
-        sttPromise = transcribeWithGroq(audioFileForGroq, groqKey);
+        sttPromise = transcribeWithGroq(buffer, groqKey, file.name, mimeType);
       } catch (err) {
         console.warn('[Pre-Upload] Failed to initiate background Groq STT:', err);
       }

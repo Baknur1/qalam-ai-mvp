@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { Comfortaa } from "next/font/google";
+import localFont from "next/font/local";
+import "./comfortaa.css";
 import "./globals.css";
 
-const comfortaa = Comfortaa({
-  subsets: ["latin", "cyrillic"],
+const comfortaa = localFont({
+  src: "../../public/fonts/comfortaa.ttf",
   variable: "--font-comfortaa",
-  weight: ["300", "400", "500", "600", "700"],
   display: "swap",
 });
 
@@ -23,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${comfortaa.className} ${comfortaa.variable} h-full dark antialiased`}>
+    <html lang="ru" className={`${comfortaa.variable} ${comfortaa.className} h-full dark antialiased`}>
       <body className={`${comfortaa.className} min-h-full flex flex-col bg-[#0b0b0b] text-[#ededed] selection:bg-neutral-800 selection:text-white`}>
         {children}
       </body>

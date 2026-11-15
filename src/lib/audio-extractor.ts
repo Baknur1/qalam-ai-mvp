@@ -44,7 +44,8 @@ export async function extractAudioFromMedia(
     let audioBuffer: AudioBuffer;
 
     try {
-      audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      // slice(0) prevents memory detaching issues across browser engines
+      audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
     } finally {
       try {
         await audioCtx.close();
@@ -55,9 +56,13 @@ export async function extractAudioFromMedia(
 
     onProgress?.('encoding');
 
-    // Downmix to 16kHz mono for optimal speech recognition and compact file size
-    const targetSampleRate = 16000;
-    const duration = audioBuffer.duration;
+    // Dynamic target sample rate: keep resulting WAV guaranteed <= 20 MB (under Groq's 25 MB limit)
+    // 16-bit mono PCM is 2 bytes per sample. 20 MB = 10,000,000 samples.
+    const duration = Math.max(1, audioBuffer.duration);
+    const maxSafeSamples = 10_000_000;
+    const calculatedRate = Math.floor(maxSafeSamples / duration);
+    // Clamp between 8000 Hz (telephony standard) and 16000 Hz (optimal speech recognition)
+    const targetSampleRate = Math.max(8000, Math.min(16000, calculatedRate));
     const targetLength = Math.ceil(duration * targetSampleRate);
 
     const offlineCtx = new OfflineAudioContext(1, targetLength, targetSampleRate);

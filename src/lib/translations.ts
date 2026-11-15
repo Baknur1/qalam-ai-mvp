@@ -152,6 +152,52 @@ export interface TranslationStrings {
     unknownError: string;
     errorHint: string;
   };
+  pricing: PricingStrings;
+}
+
+export interface PricingFeature {
+  name: string;
+  ind: string | boolean;
+  team: string | boolean;
+}
+
+export interface PricingCategory {
+  name: string;
+  features: PricingFeature[];
+}
+
+export interface PricingStrings {
+  title: string;
+  subtitle: string;
+  toggleMonthly: string;
+  toggleYearly: string;
+  billedAnnually: string;
+  billedMonthly: string;
+  discountLabel: string;
+  fairUseTitle: string;
+  fairUseDesc: string;
+  perMonth: string;
+  perYear: string;
+  perTeamMonth: string;
+  individual: {
+    name: string;
+    desc: string;
+    button: string;
+    bullets: string[];
+  };
+  team: {
+    name: string;
+    desc: string;
+    annualNote: string;
+    button: string;
+    bullets: string[];
+  };
+  tableTitle: string;
+  currencyBadge: string;
+  colFeature: string;
+  corporateNote: string;
+  contactSales: string;
+  categories: PricingCategory[];
 }
 
 export const TRANSLATIONS: Record<OutputLanguage, TranslationStrings> = {
@@ -327,6 +373,80 @@ export const TRANSLATIONS: Record<OutputLanguage, TranslationStrings> = {
       serverError: (status) => `Ошибка сервера: ${status}`,
       unknownError: 'Неизвестная ошибка обработки',
       errorHint: 'Проверьте настройки API ключей в верхнем меню или повторите попытку.'
+    },
+    pricing: {
+      title: 'Инвестиция в скорость и точность вашей редакции',
+      subtitle: 'Прозрачные тарифы без скрытых переплат. Автоматический фактчекинг, транскрипция и умный рерайтинг для журналистов.',
+      toggleMonthly: 'Ежемесячно',
+      toggleYearly: 'Годовая',
+      billedAnnually: 'При оплате за год:',
+      billedMonthly: 'Оплата помесячно',
+      discountLabel: 'скидка 15%',
+      fairUseTitle: 'Fair Use политика: 15 часов аудио на пользователя в месяц',
+      fairUseDesc: 'В оба тарифных плана включено 15 часов расшифровки и фактчекинга аудио на каждого журналиста в месяц без скрытых доплат.',
+      perMonth: 'в месяц',
+      perYear: 'в год',
+      perTeamMonth: 'в месяц на команду',
+      individual: {
+        name: 'Individual',
+        desc: 'Идеально для фрилансеров, журналистов-расследователей и блогеров.',
+        button: 'Подключить Individual',
+        bullets: [
+          '1 рабочий аккаунт журналиста',
+          '15 часов аудио в месяц (Fair use)',
+          'Стенограмма, фактчекинг и лид-статья',
+          'Экспорт в Telegram и Reels / TikTok'
+        ]
+      },
+      team: {
+        name: 'Team',
+        desc: 'Полноценное решение для редакций, новостных отделов и медиакоманд до 3 человек.',
+        annualNote: '900 000 ₸ в год на команду до 3 человек',
+        button: 'Подключить Team',
+        bullets: [
+          'До 3 мест для авторов и редакторов',
+          '45 часов аудио в месяц (15 ч / чел)',
+          'Совместный рабочий стол и история правок',
+          'Оплата по договору, безнал и закрывающие акты'
+        ]
+      },
+      tableTitle: 'Сравнение возможностей тарифов',
+      currencyBadge: 'KZT (тенге)',
+      colFeature: 'Возможности и функционал',
+      corporateNote: 'Корпоративный тариф для редакции более 3 человек?',
+      contactSales: 'Связаться с отделом продаж →',
+      categories: [
+        {
+          name: 'Лимиты и доступ',
+          features: [
+            { name: 'Количество пользователей (рабочих мест)', ind: '1 журналист', team: 'До 3 журналистов' },
+            { name: 'Лимит расшифровки аудио (Fair Use)', ind: '15 ч / месяц', team: '15 ч / чел (45 ч / мес)' },
+            { name: 'Максимальный размер одного файла', ind: 'До 2 ГБ', team: 'До 4 ГБ' },
+            { name: 'Обработка видео (MP4, MOV, WebM)', ind: true, team: true }
+          ]
+        },
+        {
+          name: 'Журналистский ИИ-инструментарий',
+          features: [
+            { name: 'Стенограмма с разделением спикеров и таймкодами', ind: true, team: true },
+            { name: 'Автоматический фактчекинг и сверка цифр', ind: true, team: true },
+            { name: 'Поиск ссылок на реальные первоисточники СМИ', ind: true, team: true },
+            { name: 'Генерация готовой лид-статьи (Web Article)', ind: true, team: true },
+            { name: 'Мультиплатформенный экспорт (Telegram, Reels / TikTok)', ind: true, team: true },
+            { name: 'Интерактивный Tiptap редактор с быстрыми правками', ind: true, team: true },
+            { name: 'Трехъязычный вывод (RU, KZ, EN)', ind: true, team: true }
+          ]
+        },
+        {
+          name: 'Командная работа и поддержка',
+          features: [
+            { name: 'Общее рабочее пространство редакции', ind: false, team: true },
+            { name: 'Единый пул часов расшифровки на команду', ind: false, team: true },
+            { name: 'Оплата по счету юрлица и закрывающие акты (ЭСФ)', ind: false, team: true },
+            { name: 'Приоритетная линия поддержки', ind: 'Email-поддержка', team: 'Выделенный чат в Telegram' }
+          ]
+        }
+      ]
     }
   },
   kz: {
@@ -501,6 +621,80 @@ export const TRANSLATIONS: Record<OutputLanguage, TranslationStrings> = {
       serverError: (status) => `Сервер қатесі: ${status}`,
       unknownError: 'Белгісіз өңдеу қатесі',
       errorHint: 'Жоғарғы мәзірден API кілттерін тексеріңіз немесе қайталап көріңіз.'
+    },
+    pricing: {
+      title: 'Редакцияңыздың жылдамдығы мен дәлдігіне салынған инвестиция',
+      subtitle: 'Жасырын үстемеақысыз ашық бағалар. Журналистерге арналған автоматты фактчекинг, транскрипция және мультиплатформалық экспорт.',
+      toggleMonthly: 'Ай сайын',
+      toggleYearly: 'Жылдық',
+      billedAnnually: 'Жылдық төлем кезінде:',
+      billedMonthly: 'Ай сайынғы төлем',
+      discountLabel: '15% жеңілдік',
+      fairUseTitle: 'Fair Use саясаты: пайдаланушыға айына 15 сағат аудио',
+      fairUseDesc: 'Екі тарифке де әр журналистке айына 15 сағат аудионы толық өңдеу мен фактчекинг жасау кіреді.',
+      perMonth: 'айына',
+      perYear: 'жылына',
+      perTeamMonth: 'айына командаға',
+      individual: {
+        name: 'Individual',
+        desc: 'Фрилансерлер, зерттеуші-журналистер мен сарапшыларға арналған.',
+        button: 'Individual қосу',
+        bullets: [
+          '1 журналистің жұмыс аккаунты',
+          'Айына 15 сағат аудио (Fair use)',
+          'Стенограмма, фактчекинг және жетекші мақала',
+          'Telegram және Reels / TikTok экспорттау'
+        ]
+      },
+      team: {
+        name: 'Team',
+        desc: '3 адамға дейінгі редакциялар мен медиа командаларға арналған кешенді шешім.',
+        annualNote: '3 адамға дейінгі командаға жылына 900 000 ₸',
+        button: 'Team қосу',
+        bullets: [
+          'Авторлар мен редакторларға 3 орынға дейін',
+          'Айына 45 сағат аудио (15 сағ / адам)',
+          'Ортақ жұмыс кеңістігі мен түзетулер тарихы',
+          'Шарт бойынша төлем, қолма-қолсыз және жабу құжаттары'
+        ]
+      },
+      tableTitle: 'Тарифтердің мүмкіндіктерін салыстыру',
+      currencyBadge: 'KZT (теңге)',
+      colFeature: 'Мүмкіндіктер мен функциялар',
+      corporateNote: '3 адамнан көп редакцияға арналған корпоративтік тариф керек пе?',
+      contactSales: 'Сату бөлімімен байланысу →',
+      categories: [
+        {
+          name: 'Лимиттер мен қолжетімділік',
+          features: [
+            { name: 'Пайдаланушылар саны (жұмыс орны)', ind: '1 журналист', team: '3 журналистке дейін' },
+            { name: 'Аудио өңдеу лимиті (Fair Use)', ind: '15 сағ / ай', team: '15 сағ / адам (45 сағ / ай)' },
+            { name: 'Бір файлдың максималды көлемі', ind: '2 ГБ дейін', team: '4 ГБ дейін' },
+            { name: 'Видео файлдарды өңдеу (MP4, MOV, WebM)', ind: true, team: true }
+          ]
+        },
+        {
+          name: 'Журналистикаға арналған ЖИ құралдары',
+          features: [
+            { name: 'Спикерлерге бөлінген стенограмма мен таймкодтар', ind: true, team: true },
+            { name: 'Автоматты фактчекинг және сандарды тексеру', ind: true, team: true },
+            { name: 'Нақты БАҚ пен бастапқы дереккөздерге сілтемелер', ind: true, team: true },
+            { name: 'Дайын жетекші мақала (Web Article) құру', ind: true, team: true },
+            { name: 'Әлеуметтік желілерге экспорт (Telegram, Reels, TikTok)', ind: true, team: true },
+            { name: 'Интерактивті Tiptap редакторы мен жылдам түзетулер', ind: true, team: true },
+            { name: 'Үш тілде шығару (RU, KZ, EN)', ind: true, team: true }
+          ]
+        },
+        {
+          name: 'Командалық жұмыс пен қолдау',
+          features: [
+            { name: 'Редакцияның ортақ жұмыс кеңістігі', ind: false, team: true },
+            { name: 'Командаға ортақ сағаттар қоры', ind: false, team: true },
+            { name: 'Заңды тұлғаларға арналған шот пен жабу құжаттары (ЭСФ)', ind: false, team: true },
+            { name: 'Басымдықты қолдау қызметі', ind: 'Email қолдау', team: 'Telegram жеке чаты' }
+          ]
+        }
+      ]
     }
   },
   en: {
@@ -675,6 +869,80 @@ export const TRANSLATIONS: Record<OutputLanguage, TranslationStrings> = {
       serverError: (status) => `Server error: ${status}`,
       unknownError: 'Unknown processing error',
       errorHint: 'Check API key settings or try again.'
+    },
+    pricing: {
+      title: 'Invest in speed and journalistic accuracy',
+      subtitle: 'Transparent plans with no hidden charges. Automated fact-checking, transcription, and multi-format publishing for editorial teams.',
+      toggleMonthly: 'Monthly',
+      toggleYearly: 'Annual',
+      billedAnnually: 'Billed annually:',
+      billedMonthly: 'Billed monthly',
+      discountLabel: '15% off',
+      fairUseTitle: 'Fair Use Policy: 15 hours of audio per user per month',
+      fairUseDesc: 'Both plans include 15 hours of audio transcription and automated fact-checking per journalist each month with zero surprise costs.',
+      perMonth: 'per month',
+      perYear: 'per year',
+      perTeamMonth: 'per month for team',
+      individual: {
+        name: 'Individual',
+        desc: 'Ideal for freelance investigative reporters, analysts, and content creators.',
+        button: 'Get Individual',
+        bullets: [
+          '1 journalist seat',
+          '15 hours of audio per month (Fair use)',
+          'Transcript, fact-checking, and lead article',
+          'Multi-platform export to Telegram and Reels / TikTok'
+        ]
+      },
+      team: {
+        name: 'Team',
+        desc: 'Complete workflow for digital newsrooms and editorial teams up to 3 members.',
+        annualNote: '900,000 ₸ per year for team up to 3 seats',
+        button: 'Get Team',
+        bullets: [
+          'Up to 3 seats for reporters and editors',
+          '45 hours of audio per month (15 hrs / user)',
+          'Shared workspace & revision history',
+          'Corporate invoice, bank transfer & closing docs'
+        ]
+      },
+      tableTitle: 'Detailed Feature Comparison',
+      currencyBadge: 'KZT (tenge)',
+      colFeature: 'Capabilities & Tools',
+      corporateNote: 'Need an enterprise plan for more than 3 journalists?',
+      contactSales: 'Contact Sales →',
+      categories: [
+        {
+          name: 'Access & Quotas',
+          features: [
+            { name: 'Number of user seats', ind: '1 Journalist', team: 'Up to 3 Journalists' },
+            { name: 'Audio processing allowance (Fair Use)', ind: '15 hrs / month', team: '15 hrs / user (45 hrs / mo)' },
+            { name: 'Max upload file size', ind: 'Up to 2 GB', team: 'Up to 4 GB' },
+            { name: 'Video input support (MP4, MOV, WebM)', ind: true, team: true }
+          ]
+        },
+        {
+          name: 'AI Editorial Suite',
+          features: [
+            { name: 'Speaker diarization and timestamped transcript', ind: true, team: true },
+            { name: 'Automated fact-checking & numeric verification', ind: true, team: true },
+            { name: 'Direct links to authentic press archives & public registries', ind: true, team: true },
+            { name: 'Lead web article generation', ind: true, team: true },
+            { name: 'Multi-platform social exports (Telegram, Reels, TikTok)', ind: true, team: true },
+            { name: 'Interactive Tiptap editor with 1-click auto-fixes', ind: true, team: true },
+            { name: 'Trilingual parity (RU, KZ, EN)', ind: true, team: true }
+          ]
+        },
+        {
+          name: 'Collaboration & Governance',
+          features: [
+            { name: 'Shared newsroom workspace', ind: false, team: true },
+            { name: 'Pooled monthly audio hours across team', ind: false, team: true },
+            { name: 'Corporate invoicing and tax closing documents', ind: false, team: true },
+            { name: 'Priority editorial support', ind: 'Email support', team: 'Dedicated Telegram line' }
+          ]
+        }
+      ]
     }
   }
 };

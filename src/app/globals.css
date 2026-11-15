@@ -1,3 +1,4 @@
+@import "./comfortaa.css";
 @import "tailwindcss";
 
 @layer base {
@@ -14,7 +15,7 @@
   button,
   textarea,
   select {
-    font-family: var(--font-comfortaa), 'Comfortaa', cursive, system-ui, sans-serif !important;
+    font-family: var(--font-comfortaa), 'Comfortaa', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   }
 
   body {

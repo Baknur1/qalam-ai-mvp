@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MOCK_PIPELINE_RESULT } from '@/lib/mock-data';
-import { processWithGemini, processAudioWithGemini } from '@/lib/gemini';
+import {
+  processWithGemini,
+  processAudioWithGemini,
+  processWithGeminiStream,
+  processAudioWithGeminiStream
+} from '@/lib/gemini';
 import { transcribeWithGroq } from '@/lib/groq';
-import { PipelineResult, TranscriptItem } from '@/lib/types';
+import { PipelineResult, TranscriptItem, FactCheckItem } from '@/lib/types';
 import { getUpload, removeUpload } from '@/lib/upload-cache';
+import { enrichFactSource } from '@/lib/source-grounding';
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage = 'Operation timed out'): Promise<T> {
   let timer: NodeJS.Timeout | null = null;
@@ -18,9 +24,17 @@ function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage = 'Operati
   });
 }
 
+function sseChunk(event: string, data: unknown): Uint8Array {
+  return new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const contentType = req.headers.get('content-type') || '';
+    const wantsStream =
+      req.headers.get('accept')?.includes('text/event-stream') ||
+      req.nextUrl.searchParams.get('stream') === 'true';
+
     let isMock = false;
     let sourceText = '';
     let audioFile: File | null = null;
@@ -50,17 +64,33 @@ export async function POST(req: NextRequest) {
 
     // Fast-path: Explicit Mock mode or missing Gemini key
     if (isMock || (!effectiveGeminiKey && !sourceText && !audioFile && !uploadId)) {
-      return NextResponse.json({
+      const mockData = {
         ...MOCK_PIPELINE_RESULT,
         id: `demo-${Date.now()}`,
         isMock: true,
         createdAt: new Date().toISOString()
-      });
+      };
+      if (wantsStream) {
+        const stream = new ReadableStream({
+          start(controller) {
+            controller.enqueue(sseChunk('complete', { result: mockData }));
+            controller.close();
+          }
+        });
+        return new Response(stream, {
+          headers: {
+            'Content-Type': 'text/event-stream; charset=utf-8',
+            'Cache-Control': 'no-cache, no-transform',
+            Connection: 'keep-alive'
+          }
+        });
+      }
+      return NextResponse.json(mockData);
     }
 
     if (!effectiveGeminiKey) {
       return NextResponse.json(
-        { error: 'GEMINI_API_KEY не настроен. Пожалуйста, укажите ключ в настройках или в файле .env.local.' },
+        { error: 'GEMINI_API_KEY не настроен. Пожалуйста, укажите ключ в файле .env.local.' },
         { status: 400 }
       );
     }
@@ -73,6 +103,7 @@ export async function POST(req: NextRequest) {
     let fileName = '';
     let fileSize = 0;
     let precomputedStt: { text: string; segments: TranscriptItem[] } | null = null;
+    let cachedSttPromise: Promise<{ text: string; segments: TranscriptItem[] }> | undefined = undefined;
 
     if (uploadId) {
       const cached = getUpload(uploadId);
@@ -85,11 +116,7 @@ export async function POST(req: NextRequest) {
         if (cached.sttResult) {
           precomputedStt = cached.sttResult;
         } else if (cached.sttPromise) {
-          try {
-            precomputedStt = await withTimeout(cached.sttPromise, 25000, 'Pre-STT timeout');
-          } catch (e) {
-            console.warn('[Process] Precomputed STT wait failed or timed out:', e);
-          }
+          cachedSttPromise = cached.sttPromise;
         }
         removeUpload(uploadId);
       }
@@ -109,7 +136,191 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // SCENARIO 1: Audio / Media file provided
+    // ==========================================
+    // STREAMING SSE HANDLER
+    // ==========================================
+    if (wantsStream) {
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            controller.enqueue(sseChunk('step', { step: 1, message: 'Подготовка исходного материала...' }));
+
+            let rawTranscript = '';
+            let transcriptSegments: TranscriptItem[] = [];
+            let geminiResult;
+
+            // Scenario 1: Media file
+            if (audioBuffer && audioBuffer.length > 0) {
+              let groqSuccess = false;
+              if (precomputedStt) {
+                rawTranscript = precomputedStt.text;
+                transcriptSegments = precomputedStt.segments;
+                groqSuccess = true;
+              } else if (cachedSttPromise) {
+                try {
+                  controller.enqueue(sseChunk('step', { step: 1, message: 'Завершение быстрой транскрибации речи...' }));
+                  const sttResult = await withTimeout(cachedSttPromise, 45000, 'Pre-STT timeout');
+                  rawTranscript = sttResult.text;
+                  transcriptSegments = sttResult.segments;
+                  groqSuccess = true;
+                } catch (e) {
+                  console.warn('[Process] Precomputed STT wait skipped:', e);
+                }
+              }
+
+              if (!groqSuccess && effectiveGroqKey && fileSize <= 24 * 1024 * 1024 && !mimeType.startsWith('video/')) {
+                try {
+                  controller.enqueue(sseChunk('step', { step: 1, message: 'Быстрая транскрибация речи через Groq...' }));
+                  const sttResult = await withTimeout(
+                    transcribeWithGroq(audioBuffer, effectiveGroqKey, fileName || 'audio.wav', mimeType),
+                    45000,
+                    'Groq timeout'
+                  );
+                  rawTranscript = sttResult.text;
+                  transcriptSegments = sttResult.segments;
+                  groqSuccess = true;
+                } catch (groqErr) {
+                  console.warn('[Process Stream] Groq STT fallback to Gemini directly:', groqErr);
+                }
+              }
+
+              controller.enqueue(sseChunk('step', { step: 2, message: 'Анализ фактов и генерация черновика...' }));
+
+              if (groqSuccess && rawTranscript) {
+                geminiResult = await processWithGeminiStream(
+                  rawTranscript,
+                  {
+                    onFact: async (fact: FactCheckItem) => {
+                      const enriched = await enrichFactSource(fact, fact.speaker, undefined, effectiveGeminiKey);
+                      controller.enqueue(sseChunk('fact', { fact: enriched }));
+                    },
+                    onDraftChunk: (chunk: string) => controller.enqueue(sseChunk('draft_chunk', { chunk }))
+                  },
+                  effectiveGeminiKey,
+                  undefined,
+                  fileName
+                );
+              } else {
+                geminiResult = await processAudioWithGeminiStream(
+                  audioBuffer,
+                  mimeType,
+                  {
+                    onFact: async (fact: FactCheckItem) => {
+                      const enriched = await enrichFactSource(fact, fact.speaker, undefined, effectiveGeminiKey);
+                      controller.enqueue(sseChunk('fact', { fact: enriched }));
+                    },
+                    onDraftChunk: (chunk: string) => controller.enqueue(sseChunk('draft_chunk', { chunk }))
+                  },
+                  effectiveGeminiKey,
+                  undefined,
+                  fileName
+                );
+                if (geminiResult.transcript && geminiResult.transcript.length > 0) {
+                  transcriptSegments = geminiResult.transcript;
+                  rawTranscript = transcriptSegments.map(s => `[${s.timestamp}] ${s.speaker}: ${s.text}`).join('\n');
+                } else {
+                  rawTranscript = geminiResult.outputs.ru?.web_article || 'Транскрипт сформирован';
+                }
+              }
+            } else if (sourceText.trim()) {
+              // Scenario 2: Text input
+              controller.enqueue(sseChunk('step', { step: 2, message: 'Проверка утверждений и создание черновика...' }));
+
+              geminiResult = await processWithGeminiStream(
+                sourceText,
+                {
+                  onFact: async (fact: FactCheckItem) => {
+                    const enriched = await enrichFactSource(fact, fact.speaker, undefined, effectiveGeminiKey);
+                    controller.enqueue(sseChunk('fact', { fact: enriched }));
+                  },
+                  onDraftChunk: (chunk: string) => controller.enqueue(sseChunk('draft_chunk', { chunk }))
+                },
+                effectiveGeminiKey
+              );
+
+              const lines = sourceText.split('\n').filter(l => l.trim().length > 0);
+              const mainSpeaker = geminiResult.factCheckItems[0]?.speaker || 'Эксперт';
+              transcriptSegments = lines.map((line, idx) => {
+                const timeMatch = line.match(/^\[?(\d{2}:\d{2})\]?/);
+                const timestamp = timeMatch ? timeMatch[1] : `00:${(idx * 15).toString().padStart(2, '0')}`;
+                const cleanText = line.replace(/^\[?\d{2}:\d{2}\]?\s*/, '').trim();
+                return {
+                  id: `t-${idx + 1}`,
+                  timestamp,
+                  speaker: idx % 2 === 0 ? mainSpeaker : 'Интервьюер',
+                  text: cleanText,
+                  flagIds: []
+                };
+              });
+              rawTranscript = sourceText;
+            } else {
+              throw new Error('Не предоставлен файл или текст для обработки');
+            }
+
+            const processingTime = (Date.now() - startTime) / 1000;
+
+            const enrichedFacts = await Promise.all(
+              geminiResult.factCheckItems.map(item => enrichFactSource(item, item.speaker, undefined, effectiveGeminiKey))
+            );
+
+            const responseData: PipelineResult = {
+              id: `result-${Date.now()}`,
+              title: geminiResult.title || fileName || 'Редакционный материал',
+              sourceLang: 'mixed',
+              rawTranscriptText: rawTranscript,
+              transcript:
+                transcriptSegments.length > 0
+                  ? transcriptSegments
+                  : [
+                      {
+                        id: 't-1',
+                        timestamp: '00:00',
+                        speaker: 'Спикер',
+                        text: rawTranscript,
+                        flagIds: []
+                      }
+                    ],
+              flags: geminiResult.flags,
+              factCheckItems: enrichedFacts,
+              outputs: geminiResult.outputs,
+              isMock: false,
+              createdAt: new Date().toISOString(),
+              stats: {
+                audioLength: fileSize > 0 ? `${Math.round(fileSize / 1024 / 10)}s` : undefined,
+                wordCount: rawTranscript.split(/\s+/).filter(Boolean).length,
+                totalFlags: geminiResult.factCheckItems.length,
+                verifiedFlags: 0,
+                processingTimeSec: Number(processingTime.toFixed(1))
+              }
+            };
+
+            controller.enqueue(sseChunk('complete', { result: responseData }));
+            controller.close();
+          } catch (err) {
+            console.error('[Stream Error]:', err);
+            controller.enqueue(
+              sseChunk('error', {
+                error: err instanceof Error ? err.message : 'Ошибка обработки материала'
+              })
+            );
+            controller.close();
+          }
+        }
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache, no-transform',
+          Connection: 'keep-alive',
+          'X-Accel-Buffering': 'no'
+        }
+      });
+    }
+
+    // ==========================================
+    // NON-STREAMING FALLBACK (Standard JSON)
+    // ==========================================
     if (audioBuffer && audioBuffer.length > 0) {
       let rawTranscript = '';
       let transcriptSegments: TranscriptItem[] = [];
@@ -120,13 +331,10 @@ export async function POST(req: NextRequest) {
         rawTranscript = precomputedStt.text;
         transcriptSegments = precomputedStt.segments;
         groqSuccess = true;
-        console.log(`[Audio Pipeline] Using instant precomputed Groq STT transcript (${rawTranscript.length} chars).`);
       } else if (effectiveGroqKey && fileSize <= 24 * 1024 * 1024 && !mimeType.startsWith('video/')) {
         try {
-          const blob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType });
-          const fileForGroq = new File([blob], fileName || 'audio.wav', { type: mimeType });
           const sttResult = await withTimeout(
-            transcribeWithGroq(fileForGroq, effectiveGroqKey),
+            transcribeWithGroq(audioBuffer, effectiveGroqKey, fileName || 'audio.wav', mimeType),
             45000,
             'Groq timeout'
           );
@@ -134,16 +342,14 @@ export async function POST(req: NextRequest) {
           transcriptSegments = sttResult.segments;
           groqSuccess = true;
         } catch (groqErr) {
-          console.warn('[Audio Pipeline] Groq STT unavailable or timed out, using Gemini Multimodal Audio directly.', groqErr);
+          console.warn('[Audio Pipeline] Groq STT unavailable or timed out, using Gemini directly.', groqErr);
         }
       }
 
       if (groqSuccess && rawTranscript) {
-        // Groq transcribed the audio, now process with Gemini
-        geminiResult = await processWithGemini(rawTranscript, effectiveGeminiKey);
+        geminiResult = await processWithGemini(rawTranscript, effectiveGeminiKey, undefined, fileName);
       } else {
-        // Direct Gemini Multimodal Audio processing via Google Files API
-        geminiResult = await processAudioWithGemini(audioBuffer, mimeType, effectiveGeminiKey);
+        geminiResult = await processAudioWithGemini(audioBuffer, mimeType, effectiveGeminiKey, undefined, fileName);
         if (geminiResult.transcript && geminiResult.transcript.length > 0) {
           transcriptSegments = geminiResult.transcript;
           rawTranscript = transcriptSegments.map(s => `[${s.timestamp}] ${s.speaker}: ${s.text}`).join('\n');
@@ -152,7 +358,11 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const processingTime = ((Date.now() - startTime) / 1000);
+      const processingTime = (Date.now() - startTime) / 1000;
+
+      const enrichedFacts = await Promise.all(
+        geminiResult.factCheckItems.map(item => enrichFactSource(item, item.speaker, undefined, effectiveGeminiKey))
+      );
 
       const responseData: PipelineResult = {
         id: `result-${Date.now()}`,
@@ -172,13 +382,13 @@ export async function POST(req: NextRequest) {
                 }
               ],
         flags: geminiResult.flags,
-        factCheckItems: geminiResult.factCheckItems,
+        factCheckItems: enrichedFacts,
         outputs: geminiResult.outputs,
         isMock: false,
         createdAt: new Date().toISOString(),
         stats: {
           audioLength: `${Math.round(fileSize / 1024 / 10)}s`,
-          wordCount: rawTranscript.split(/\s+/).length,
+          wordCount: rawTranscript.split(/\s+/).filter(Boolean).length,
           totalFlags: geminiResult.factCheckItems.length,
           verifiedFlags: 0,
           processingTimeSec: Number(processingTime.toFixed(1))
@@ -188,17 +398,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(responseData);
     }
 
-    // SCENARIO 2: Text input provided
     if (sourceText.trim()) {
       const geminiResult = await processWithGemini(sourceText, effectiveGeminiKey);
-
-      // Create timestamped segments from text lines if possible
       const lines = sourceText.split('\n').filter(l => l.trim().length > 0);
+      const mainSpeaker = geminiResult.factCheckItems[0]?.speaker || 'Эксперт';
       const transcriptSegments: TranscriptItem[] = lines.map((line, idx) => {
         const timeMatch = line.match(/^\[?(\d{2}:\d{2})\]?/);
         const timestamp = timeMatch ? timeMatch[1] : `00:${(idx * 15).toString().padStart(2, '0')}`;
         const cleanText = line.replace(/^\[?\d{2}:\d{2}\]?\s*/, '').trim();
-        const mainSpeaker = geminiResult.factCheckItems[0]?.speaker || 'Эксперт';
         return {
           id: `t-${idx + 1}`,
           timestamp,
@@ -208,7 +415,11 @@ export async function POST(req: NextRequest) {
         };
       });
 
-      const processingTime = ((Date.now() - startTime) / 1000);
+      const processingTime = (Date.now() - startTime) / 1000;
+
+      const enrichedFacts = await Promise.all(
+        geminiResult.factCheckItems.map(item => enrichFactSource(item, item.speaker, undefined, effectiveGeminiKey))
+      );
 
       const responseData: PipelineResult = {
         id: `result-${Date.now()}`,
@@ -228,12 +439,12 @@ export async function POST(req: NextRequest) {
                 }
               ],
         flags: geminiResult.flags,
-        factCheckItems: geminiResult.factCheckItems,
+        factCheckItems: enrichedFacts,
         outputs: geminiResult.outputs,
         isMock: false,
         createdAt: new Date().toISOString(),
         stats: {
-          wordCount: sourceText.split(/\s+/).length,
+          wordCount: sourceText.split(/\s+/).filter(Boolean).length,
           totalFlags: geminiResult.factCheckItems.length,
           verifiedFlags: 0,
           processingTimeSec: Number(processingTime.toFixed(1))
@@ -243,17 +454,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(responseData);
     }
 
-    // Fallback: If nothing was sent, return mock
-    return NextResponse.json({
-      ...MOCK_PIPELINE_RESULT,
-      id: `demo-${Date.now()}`,
-      isMock: true
-    });
-  } catch (error: unknown) {
-    console.error('Pipeline process error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown server error';
+    return NextResponse.json({ error: 'Не предоставлен файл или текст' }, { status: 400 });
+  } catch (error) {
+    console.error('[Process Route Error]:', error);
     return NextResponse.json(
-      { error: message },
+      { error: error instanceof Error ? error.message : 'Processing failed' },
       { status: 500 }
     );
   }

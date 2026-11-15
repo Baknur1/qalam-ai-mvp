@@ -1,5 +1,33 @@
 import { PipelineResult, VerificationFlag, TranscriptItem } from './types';
 
+export const EMPTY_PIPELINE_RESULT: PipelineResult = {
+  id: '',
+  title: '',
+  sourceLang: 'ru',
+  rawTranscriptText: '',
+  transcript: [],
+  factCheckItems: [],
+  flags: [],
+  outputs: {
+    ru: { web_article: '', telegram_post: '', social_script: '' },
+    kz: { web_article: '', telegram_post: '', social_script: '' },
+    en: { web_article: '', telegram_post: '', social_script: '' }
+  },
+  isMock: false,
+  createdAt: '',
+  stats: {
+    wordCount: 0,
+    totalFlags: 0,
+    verifiedFlags: 0,
+    processingTimeSec: 0
+  }
+};
+
+export const DEFAULT_DEMO_FILE = {
+  name: 'Someinterview_file.mp4',
+  size: '10.5 mb'
+};
+
 export const MOCK_VERIFICATION_FLAGS: VerificationFlag[] = [
   {
     id: 'flag-1',

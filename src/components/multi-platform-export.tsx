@@ -11,6 +11,7 @@ import {
   FactStatus
 } from '@/lib/types';
 import { TRANSLATIONS } from '@/lib/translations';
+import { normalizeMarkdownContent } from '@/lib/prompts';
 
 interface MultiPlatformExportProps {
   outputs: MultilingualOutputs;
@@ -71,7 +72,8 @@ function formatInline(text: string): string {
 
 function markdownToClipboardHtml(md: string, isTelegram: boolean): string {
   if (!md) return '';
-  const text = isTelegram ? normalizeTelegramMarkdown(md) : normalizeScenarioSpacing(md);
+  const cleanMd = normalizeMarkdownContent(md);
+  const text = isTelegram ? normalizeTelegramMarkdown(cleanMd) : normalizeScenarioSpacing(cleanMd);
   const blocks = text.split(/\n\n+/);
 
   const htmlBlocks = blocks.map((block) => {
@@ -167,13 +169,28 @@ export function MultiPlatformExport({
   const renderContentBlocks = (text: string, streaming: boolean = false) => {
     if (!text && !streaming) {
       return (
-        <p className="text-sm text-neutral-500 italic">
-          {activeLang === 'ru' ? 'Контент формируется...' : 'Content generating...'}
-        </p>
+        <div className="py-14 flex flex-col items-center justify-center text-center select-none">
+          <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin mb-3.5" />
+          <p className="text-sm font-normal text-neutral-300">
+            {activeLang === 'kz'
+              ? 'Қазақ тіліне бейімделуде...'
+              : activeLang === 'en'
+                ? 'Translating to English...'
+                : 'Контент формируется...'}
+          </p>
+          <span className="text-xs text-neutral-500 mt-1.5 max-w-xs">
+            {activeLang === 'kz'
+              ? 'Негізгі материал дайын, фонодық аударма бірнеше секундта қосылады'
+              : activeLang === 'en'
+                ? 'Primary draft ready, background translation in progress'
+                : 'Формирование материалов...'}
+          </span>
+        </div>
       );
     }
 
-    const processedText = normalizeScenarioSpacing(text);
+    const cleanText = normalizeMarkdownContent(text || '');
+    const processedText = normalizeScenarioSpacing(cleanText);
 
     return (
       <div className="text-sm sm:text-[15px] text-neutral-200 leading-[1.7] space-y-4 sm:space-y-4.5">
@@ -210,6 +227,58 @@ export function MultiPlatformExport({
                 {trimmed.replace(/^>\s*/, '').replace(/\*\*(.*?)\*\*/g, '$1')}
               </blockquote>
             );
+          }
+          if (trimmed.startsWith('|')) {
+            const allLines = trimmed.split('\n');
+            const tableLines = allLines.filter((l) => l.trim().startsWith('|'));
+            const nonTableLines = allLines.filter((l) => !l.trim().startsWith('|') && l.trim().length > 0);
+
+            if (tableLines.length >= 2) {
+              const parseRow = (line: string) =>
+                line
+                  .split('|')
+                  .slice(1, -1)
+                  .map((c) => c.trim());
+              const headerRow = parseRow(tableLines[0]);
+              const bodyRows = tableLines
+                .slice(1)
+                .filter((l) => !l.includes('---'))
+                .map(parseRow);
+
+              return (
+                <React.Fragment key={idx}>
+                  <div className="my-4 overflow-x-auto rounded-[10px] border border-[#2e2e34]">
+                    <table className="w-full text-left text-xs sm:text-sm border-collapse">
+                      <thead>
+                        <tr className="bg-[#1a1a20] border-b border-[#333338]">
+                          {headerRow.map((h, hIdx) => (
+                            <th key={hIdx} className="px-3.5 py-2.5 font-semibold text-white border-r border-[#2e2e34] last:border-r-0">
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bodyRows.map((row, rIdx) => (
+                          <tr key={rIdx} className="border-b border-[#26262c] last:border-b-0 hover:bg-white/[0.02]">
+                            {row.map((cell, cIdx) => (
+                              <td key={cIdx} className="px-3.5 py-2 text-neutral-300 border-r border-[#26262c] last:border-r-0">
+                                {cell}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {nonTableLines.length > 0 && (
+                    <p className="text-sm sm:text-[15px] text-neutral-200 leading-[1.7] whitespace-pre-line">
+                      {nonTableLines.join('\n')}
+                    </p>
+                  )}
+                </React.Fragment>
+              );
+            }
           }
 
           return (

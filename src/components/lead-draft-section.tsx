@@ -17,6 +17,7 @@ import { EditorToolbar } from './editor-toolbar';
 import { FactCheckItem, FactStatus, OutputLanguage } from '@/lib/types';
 import { FACT_CHECK_ITEMS } from '@/lib/fact-checking-data';
 import { TRANSLATIONS } from '@/lib/translations';
+import { normalizeMarkdownContent } from '@/lib/prompts';
 
 const mdParser = new MarkdownIt({
   html: true,
@@ -242,7 +243,7 @@ export function LeadDraftSection({
       }),
       FactHighlightExtension
     ],
-    content: mdParser.render(draftText || ''),
+    content: mdParser.render(normalizeMarkdownContent(draftText || '')),
     immediatelyRender: false,
     editorProps: {
       attributes: {
@@ -261,7 +262,8 @@ export function LeadDraftSection({
   // Sync draftText with editor when props change (language switch or demo finish or auto-fix applied)
   useEffect(() => {
     if (draftText && !isStreaming && editor) {
-      editor.commands.setContent(mdParser.render(draftText));
+      const cleanDraft = normalizeMarkdownContent(draftText);
+      editor.commands.setContent(mdParser.render(cleanDraft));
     }
   }, [draftText, isStreaming, editor]);
 
@@ -284,7 +286,7 @@ export function LeadDraftSection({
   const handleTogglePreview = () => {
     if (isPreviewMode) {
       if (editor) {
-        editor.commands.setContent(mdParser.render(content));
+        editor.commands.setContent(mdParser.render(normalizeMarkdownContent(content)));
       }
       setIsPreviewMode(false);
     } else {
@@ -303,7 +305,7 @@ export function LeadDraftSection({
     setContent(val);
     triggerAutoSave(val);
     if (editor) {
-      editor.commands.setContent(mdParser.render(val));
+      editor.commands.setContent(mdParser.render(normalizeMarkdownContent(val)));
     }
   };
 
@@ -313,7 +315,8 @@ export function LeadDraftSection({
   const displayedContent = isStreaming ? streamedText : content;
 
   const renderedHtml = useMemo(() => {
-    let html = mdParser.render(displayedContent || '');
+    const cleanContent = normalizeMarkdownContent(displayedContent || '');
+    let html = mdParser.render(cleanContent);
     if (!facts || facts.length === 0) return html;
 
     facts.forEach((card) => {
@@ -471,6 +474,20 @@ export function LeadDraftSection({
                 <div className="h-5 w-5/6 rounded-md bg-white/[0.05]" />
                 <div className="h-5 w-4/6 rounded-md bg-white/[0.05]" />
               </div>
+            </div>
+          ) : !displayedContent && !isStreaming && currentLang !== 'ru' ? (
+            <div className="h-full py-28 flex flex-col items-center justify-center text-center select-none">
+              <div className="w-7 h-7 border-2 border-white/20 border-t-white rounded-full animate-spin mb-4" />
+              <p className="text-base font-normal text-neutral-300">
+                {currentLang === 'kz'
+                  ? 'Негізгі мақала қазақ тіліне бейімделуде...'
+                  : 'Translating lead draft to English...'}
+              </p>
+              <span className="text-xs text-neutral-500 mt-2 max-w-sm">
+                {currentLang === 'kz'
+                  ? 'Редакциялық фактчек пен стильдік сараптама фонодық режимде жүргізіліп жатыр'
+                  : 'Background translation with fact alignment in progress'}
+              </span>
             </div>
           ) : isRawMode ? (
             /* Raw Markdown Mode */

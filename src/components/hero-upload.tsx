@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Mic, ShieldCheck, FileText, Type, Share2, Video, Music, X, ArrowRight, Maximize2, Minimize2, ArrowUp } from 'lucide-react';
+import { Mic, ShieldCheck, FileText, Type, Share2, Video, Music, X, ArrowRight, Maximize2, Minimize2, ArrowUp, Loader2 } from 'lucide-react';
 import { OutputLanguage } from '@/lib/types';
 import { TRANSLATIONS } from '@/lib/translations';
 import { AlertModal } from './alert-modal';
@@ -38,6 +38,7 @@ export function HeroUpload({
   const [uploadState, setUploadState] = useState<'idle' | 'extracting' | 'uploading' | 'ready' | 'error'>('idle');
   const [preUploadedId, setPreUploadedId] = useState<string | null>(null);
   const preUploadPromiseRef = useRef<Promise<string | null> | null>(null);
+  const extractedFileRef = useRef<File | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const [isDragging, setIsDragging] = useState(false);
@@ -120,6 +121,7 @@ export function HeroUpload({
 
     // Set file and immediately begin background pre-upload
     setSelectedFile(file);
+    extractedFileRef.current = null;
     setPreUploadedId(null);
     setUploadProgress(10);
 
@@ -130,12 +132,13 @@ export function HeroUpload({
     abortControllerRef.current = abortCtrl;
 
     const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm|mkv|avi|m4v)$/i.test(file.name);
-    setUploadState(isVideo ? 'extracting' : 'uploading');
+    const isHeavyAudio = file.size > 22 * 1024 * 1024;
+    setUploadState(isVideo || isHeavyAudio ? 'extracting' : 'uploading');
 
     const uploadPromise = (async () => {
       try {
         let fileToUpload = file;
-        if (isVideo) {
+        if (isVideo || isHeavyAudio) {
           setUploadProgress(20);
           fileToUpload = await extractAudioFromMedia(file, (stage) => {
             if (stage === 'decoding') setUploadProgress(25);
@@ -145,6 +148,7 @@ export function HeroUpload({
 
         if (abortCtrl.signal.aborted) return null;
 
+        extractedFileRef.current = fileToUpload;
         setUploadState('uploading');
         setUploadProgress(50);
 
@@ -187,14 +191,16 @@ export function HeroUpload({
     let uploadId = preUploadedId;
     if (!uploadId && preUploadPromiseRef.current) {
       try {
+        setUploadState('uploading');
         uploadId = await preUploadPromiseRef.current;
       } catch {
         uploadId = null;
       }
     }
 
+    const fileToSend = extractedFileRef.current || selectedFile;
     onProcess({
-      audioFile: selectedFile,
+      audioFile: fileToSend,
       uploadId: uploadId || undefined,
       mode: 'file',
       useMock: false
@@ -207,6 +213,7 @@ export function HeroUpload({
       abortControllerRef.current.abort();
     }
     setSelectedFile(null);
+    extractedFileRef.current = null;
     setPreUploadedId(null);
     setUploadState('idle');
     setUploadProgress(0);
@@ -335,21 +342,6 @@ export function HeroUpload({
                   </div>
 
                   <div className="flex items-center gap-3.5 shrink-0">
-                    {uploadState === 'extracting' && (
-                      <span className="text-xs text-amber-400">
-                        {t.extractingAudio || 'Извлечение аудио...'}
-                      </span>
-                    )}
-                    {uploadState === 'uploading' && (
-                      <span className="text-xs text-neutral-400">
-                        {t.uploadingFile || 'Загрузка...'}
-                      </span>
-                    )}
-                    {uploadState === 'ready' && (
-                      <span className="text-xs text-emerald-400">
-                        {t.readyToProcess}
-                      </span>
-                    )}
                     <span className="text-xs sm:text-sm text-neutral-400">
                       {(selectedFile.size / (1024 * 1024)).toFixed(1)} mb
                     </span>
@@ -383,11 +375,34 @@ export function HeroUpload({
                 <button
                   type="button"
                   onClick={handleConfirmFileSubmit}
-                  disabled={isProcessing}
-                  className="h-[42px] px-8 rounded-full bg-white text-black text-xs sm:text-sm font-normal hover:bg-neutral-200 transition-colors cursor-pointer flex items-center gap-2 shadow-lg shadow-white/10 disabled:opacity-50"
+                  disabled={isProcessing || uploadState !== 'ready'}
+                  className={`h-[42px] px-8 rounded-full text-xs sm:text-sm font-normal transition-all duration-200 flex items-center gap-2 select-none ${
+                    isProcessing || uploadState !== 'ready'
+                      ? 'bg-[#222222] text-neutral-500 border border-[#333333] cursor-not-allowed opacity-80 shadow-none'
+                      : 'bg-white text-black hover:bg-neutral-200 cursor-pointer shadow-lg shadow-white/10 active:scale-[0.98]'
+                  }`}
                 >
-                  <span>{isProcessing ? t.processing : t.processFile}</span>
-                  {!isProcessing && <ArrowRight className="w-4 h-4" />}
+                  {uploadState === 'extracting' ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                      <span className="text-amber-300">{t.extractingAudio || 'Извлечение аудио...'}</span>
+                    </>
+                  ) : uploadState === 'uploading' ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-neutral-400" />
+                      <span className="text-neutral-300">{t.uploadingFile || 'Загрузка...'}</span>
+                    </>
+                  ) : isProcessing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-neutral-400" />
+                      <span>{t.processing}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{t.processFile}</span>
+                      <ArrowRight className="w-4 h-4 text-black" />
+                    </>
+                  )}
                 </button>
               </div>
             </div>

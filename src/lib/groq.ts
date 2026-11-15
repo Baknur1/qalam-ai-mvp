@@ -1,23 +1,44 @@
-import Groq from 'groq-sdk';
+import Groq, { toFile } from 'groq-sdk';
 import { TranscriptItem } from './types';
 
 export async function transcribeWithGroq(
-  audioFile: File | Blob,
-  apiKey?: string
+  audioInput: File | Blob | Buffer,
+  apiKey?: string,
+  fileName = 'audio.wav',
+  mimeType = 'audio/wav'
 ): Promise<{ text: string; segments: TranscriptItem[] }> {
   const key = apiKey || process.env.GROQ_API_KEY;
   if (!key) {
     throw new Error('GROQ_API_KEY is not configured');
   }
 
-  const groq = new Groq({ apiKey: key, dangerouslyAllowBrowser: true });
+  const groq = new Groq({
+    apiKey: key,
+    dangerouslyAllowBrowser: true,
+    timeout: 60000,
+    maxRetries: 1
+  });
+
+  // Use Groq's official toFile helper for rock-solid Node.js binary streaming
+  let uploadableFile: unknown;
+  if (Buffer.isBuffer(audioInput)) {
+    uploadableFile = await toFile(audioInput, fileName, { type: mimeType });
+  } else if (audioInput instanceof Blob) {
+    const arrayBuf = await audioInput.arrayBuffer();
+    const name = ('name' in audioInput && typeof audioInput.name === 'string') ? audioInput.name : fileName;
+    uploadableFile = await toFile(Buffer.from(arrayBuf), name, {
+      type: audioInput.type || mimeType
+    });
+  } else {
+    uploadableFile = audioInput;
+  }
 
   const transcription = await groq.audio.transcriptions.create({
-    file: audioFile,
-    model: 'whisper-large-v3',
+    file: uploadableFile as never,
+    model: 'whisper-large-v3-turbo',
     response_format: 'verbose_json',
     temperature: 0.0,
-    prompt: 'Брифинг, интервью на казахском и русском языках, терминология: теңге, министрлік, Астана, Қазақстан.'
+    prompt: 'Брифинг, интервью на казахском, русском и английском языках, терминология: теңге, министрлік, Астана, Қазақстан.'
   });
 
   const fullText = transcription.text;

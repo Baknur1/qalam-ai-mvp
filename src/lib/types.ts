@@ -6,6 +6,8 @@ export type FactStatus = 'pending' | 'approved' | 'declined' | 'fixed';
 
 export type QuickFixType = 'apply_ai' | 'remove' | 'footnote';
 
+export type FactCategory = 'law' | 'stat' | 'news' | 'tech' | 'general';
+
 export interface FactAuditInfo {
   type: 'discrepancy' | 'unverified' | 'verified';
   title: string;
@@ -26,6 +28,9 @@ export interface FactCheckItem {
   highlightedFact: string;
   textAfter: string;
   factCheckInfo: FactAuditInfo;
+  searchQuery?: string;
+  sourceDomain?: string;
+  factCategory?: FactCategory;
   defaultDeclineRed?: boolean;
   defaultApproveGreen?: boolean;
   targetPhrases: {
@@ -47,7 +52,7 @@ export interface FactCheckItem {
       footnote: string;
     };
   };
-  translations?: Record<OutputLanguage, {
+  translations?: Partial<Record<OutputLanguage, {
     speaker?: string;
     textBefore: string;
     underlinedPhrase?: string;
@@ -55,7 +60,7 @@ export interface FactCheckItem {
     highlightedFact: string;
     textAfter: string;
     factCheckInfo: FactAuditInfo;
-  }>;
+  }>>;
 }
 
 export interface VerificationFlag {

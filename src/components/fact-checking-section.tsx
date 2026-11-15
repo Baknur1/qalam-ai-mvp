@@ -37,109 +37,174 @@ function isGenericOrDummyUrl(urlStr: string): boolean {
   }
 }
 
-function getSourceUrl(source: string, customUrl?: string, contextText?: string): string {
-  // 1. If AI provided a genuine deep link (not a dummy calendar or root page), use it directly
-  if (customUrl && (customUrl.startsWith('http://') || customUrl.startsWith('https://'))) {
-    if (!isGenericOrDummyUrl(customUrl)) {
-      return customUrl;
+function clampQuoteContext(text: string, isBefore: boolean, maxWords = 16): string {
+  if (!text) return '';
+  const trimmed = text.trim();
+  const words = trimmed.split(/\s+/);
+  if (words.length <= maxWords) {
+    return isBefore ? `${trimmed} ` : ` ${trimmed}`;
+  }
+  if (isBefore) {
+    return `...${words.slice(-maxWords).join(' ')} `;
+  } else {
+    return ` ${words.slice(0, maxWords).join(' ')}...`;
+  }
+}
+
+const KNOWN_SOURCES: Record<string, string> = {
+  'rolling stone': 'https://www.rollingstone.com',
+  'rollingstone': 'https://www.rollingstone.com',
+  'britannica': 'https://www.britannica.com',
+  'pitchfork': 'https://pitchfork.com',
+  'musicrow': 'https://musicrow.com',
+  'billboard': 'https://www.billboard.com',
+  'variety': 'https://variety.com',
+  'deadline': 'https://deadline.com',
+  'the hollywood reporter': 'https://www.hollywoodreporter.com',
+  'hollywood reporter': 'https://www.hollywoodreporter.com',
+  'imdb': 'https://www.imdb.com',
+  'kinopoisk': 'https://www.kinopoisk.ru',
+  'кинопоиск': 'https://www.kinopoisk.ru',
+  'wikipedia': 'https://ru.wikipedia.org',
+  'википедия': 'https://ru.wikipedia.org',
+  'reuters': 'https://www.reuters.com',
+  'ap': 'https://apnews.com',
+  'ap news': 'https://apnews.com',
+  'associated press': 'https://apnews.com',
+  'bloomberg': 'https://www.bloomberg.com',
+  'forbes': 'https://www.forbes.com',
+  'the guardian': 'https://www.theguardian.com',
+  'guardian': 'https://www.theguardian.com',
+  'new york times': 'https://www.nytimes.com',
+  'nytimes': 'https://www.nytimes.com',
+  'bbc': 'https://www.bbc.com',
+  'cnn': 'https://www.cnn.com',
+  'meta': 'https://about.fb.com/news',
+  'facebook': 'https://about.fb.com/news',
+  'american survey center': 'https://www.americansurveycenter.org',
+  'survey center': 'https://www.americansurveycenter.org',
+  'aei': 'https://www.aei.org',
+  'techcrunch': 'https://techcrunch.com',
+  'the verge': 'https://theverge.com',
+  'verge': 'https://theverge.com',
+  'wired': 'https://www.wired.com',
+  'cnbc': 'https://www.cnbc.com',
+  'wsj': 'https://www.wsj.com',
+  'wall street journal': 'https://www.wsj.com',
+  'tengrinews': 'https://tengrinews.kz',
+  'informburo': 'https://informburo.kz',
+  'kazinform': 'https://www.inform.kz',
+  'zakon.kz': 'https://www.zakon.kz',
+  'baribar': 'https://baribar.kz',
+  'азаттык': 'https://rus.azattyq.org',
+  'azattyq': 'https://rus.azattyq.org',
+  'stat.gov.kz': 'https://stat.gov.kz',
+  'gov.kz': 'https://www.gov.kz',
+  'ютв': 'https://utv.ru',
+  'utv': 'https://utv.ru',
+  'sony music': 'https://www.sonymusic.com',
+  'sony': 'https://www.sonymusic.com',
+  'grammy': 'https://www.grammy.com',
+  'rbc': 'https://www.rbc.ru',
+  'рбк': 'https://www.rbc.ru',
+  'коммерсант': 'https://www.kommersant.ru',
+  'ведомости': 'https://www.vedomosti.ru',
+  'tass': 'https://tass.ru',
+  'тасс': 'https://tass.ru',
+  'ria': 'https://ria.ru',
+  'риа': 'https://ria.ru'
+};
+
+function isSearchEngineUrl(urlStr: string): boolean {
+  try {
+    const u = new URL(urlStr);
+    const host = u.hostname.toLowerCase();
+    // Allow Google site: searches that were specifically generated as targeted filters
+    if (u.searchParams.has('q') && u.searchParams.get('q')?.startsWith('site:')) {
+      return false;
+    }
+    return host.includes('google.') || host.includes('yandex.') || host.includes('bing.');
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeCustomUrl(customUrl?: string): string | null {
+  if (!customUrl || (!customUrl.startsWith('http://') && !customUrl.startsWith('https://'))) return null;
+  if (isGenericOrDummyUrl(customUrl) || isSearchEngineUrl(customUrl)) return null;
+
+  try {
+    return customUrl;
+  } catch {
+    return null;
+  }
+}
+
+function getSourceUrl(
+  source: string,
+  customUrl?: string,
+  searchQuery?: string,
+  sourceDomain?: string,
+  currentLang: OutputLanguage = 'ru'
+): string {
+  // 1. If AI or backend grounding provided a valid direct article/resource URL, USE IT DIRECTLY:
+  const sanitized = sanitizeCustomUrl(customUrl);
+  if (sanitized) {
+    return sanitized;
+  }
+
+  const query = (searchQuery || '').trim();
+  const domain = (sourceDomain || '').toLowerCase().trim();
+
+  // 2. Dynamic targeted domain routing (Kazakhstan official registers & publisher domains):
+  if (domain && query) {
+    if (domain.includes('zan.kz') || domain.includes('adilet')) {
+      return `https://adilet.zan.kz/rus/search/docs?find=${encodeURIComponent(query)}`;
+    }
+    if (domain.includes('stat.gov.kz')) {
+      return `https://stat.gov.kz/ru/search/?q=${encodeURIComponent(query)}`;
+    }
+    if (domain.includes('gov.kz')) {
+      return `https://www.gov.kz/search?q=${encodeURIComponent(query)}`;
+    }
+    if (domain.includes('tengrinews')) {
+      return `https://tengrinews.kz/search/?text=${encodeURIComponent(query)}`;
+    }
+    if (domain.includes('informburo')) {
+      return `https://informburo.kz/search?q=${encodeURIComponent(query)}`;
+    }
+    if (domain.includes('zakon.kz')) {
+      return `https://www.zakon.kz/search?q=${encodeURIComponent(query)}`;
+    }
+    if (domain.includes('.')) {
+      return `https://www.google.com/search?q=site:${encodeURIComponent(domain)}+${encodeURIComponent(query)}`;
     }
   }
 
-  const combined = `${source || ''} ${contextText || ''}`.toLowerCase();
-
-  // 2. Exact deep reference mapping for specific topics:
-  // Barbara Sher:
-  if (combined.includes('barbara sher') || combined.includes('барбара шер') || combined.includes('barbarasher')) {
-    return 'https://barbarasher.com';
-  }
-
-  // Paul Graham essays:
-  if (combined.includes('identity small') || combined.includes('keep your identity small') || combined.includes('пол грэм') || combined.includes('paul graham')) {
-    return 'https://paulgraham.com/identity.html';
-  }
-  if (combined.includes('makersschedule') || combined.includes("maker's schedule") || combined.includes('расписание творца')) {
-    return 'https://paulgraham.com/makersschedule.html';
-  }
-  if (combined.includes('how to do great work') || combined.includes('greatwork')) {
-    return 'https://paulgraham.com/greatwork.html';
-  }
-  if (combined.includes('do things that don') || combined.includes('не масштабируются')) {
-    return 'https://paulgraham.com/ds.html';
-  }
-
-  // Otto Scharmer / MIT / Presencing Institute (Theory U):
-  if (combined.includes('theory u') || combined.includes('теория ю') || combined.includes('теории ю') || combined.includes('otto scharmer') || combined.includes('отто шармер') || combined.includes('presencing')) {
-    return 'https://www.presencing.org/theoryu';
-  }
-
-  // High Agency / George Mack:
-  if (combined.includes('high agency') || combined.includes('агентност') || combined.includes('george mack')) {
-    return 'https://twitter.com/george_mack';
-  }
-
-  // Yandex HR / Olympiads / Infrastructure:
-  if (combined.includes('яндекс') || combined.includes('yandex')) {
-    return 'https://yandex.ru/jobs';
-  }
-
-  // Favignana / Sicily:
-  if (combined.includes('favignana') || combined.includes('фавиньян')) {
-    return 'https://ru.wikipedia.org/wiki/Фавиньяна';
-  }
-  if (combined.includes('visit sicily') || combined.includes('сицили')) {
-    return 'https://www.visitsicily.info/en/';
-  }
-
-  // Cambridge Historical Society:
-  if (combined.includes('cambridge') || combined.includes('croissant du jour')) {
-    return 'https://historycambridge.org/';
-  }
-
-  // Kazakhstan Ministry of Culture & Information / Budget allocation #412:
-  if (combined.includes('культуры и информации') || combined.includes('мәдениет және ақпарат') || combined.includes('№412') || combined.includes('412')) {
-    return 'https://www.gov.kz/memleket/entities/mam?lang=ru';
-  }
-  if (combined.includes('stat.gov.kz') || combined.includes('статистик')) {
-    return 'https://stat.gov.kz/';
-  }
-
-  // 3. If source contains an explicit domain name (e.g. "BarbaraSher.com", "PaulGraham.com", "MIT.edu")
-  const domainMatch = source?.match(/(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.(?:com|org|kz|edu|gov|net|io|ru|info|me|ai)(?:\/[^\s)\]]*)?)/i);
-  if (domainMatch && domainMatch[1]) {
-    const rawDomain = domainMatch[1].replace(/^[./]+|[./]+$/g, '');
-    const cleanDomain = rawDomain.toLowerCase();
-    if (cleanDomain.includes('imdb.com')) {
-      const quoteMatch = contextText?.match(/[«"]([^»"]+)[»"]/);
-      const target = quoteMatch ? quoteMatch[1] : '';
-      if (target) {
-        return `https://www.imdb.com/find/?q=${encodeURIComponent(target.trim())}`;
+  // 3. Direct mapping for known media root domains:
+  const lowerSource = (source || '').toLowerCase().trim();
+  for (const [key, domainUrl] of Object.entries(KNOWN_SOURCES)) {
+    if (lowerSource.includes(key)) {
+      if (query) {
+        try {
+          const host = new URL(domainUrl).hostname;
+          return `https://www.google.com/search?q=site:${encodeURIComponent(host)}+${encodeURIComponent(query)}`;
+        } catch {
+          return domainUrl;
+        }
       }
-      return 'https://www.imdb.com';
+      return domainUrl;
     }
-    return `https://${rawDomain}`;
   }
 
-  // 4. Source by name:
-  const lowerSource = (source || '').toLowerCase();
-  const quoteMatch = contextText?.match(/[«"]([^»"]+)[»"]/);
-  const target = quoteMatch ? quoteMatch[1] : '';
-
-  if (lowerSource.includes('imdb')) {
-    return target ? `https://www.imdb.com/find/?q=${encodeURIComponent(target)}` : 'https://www.imdb.com';
-  }
-  if (lowerSource.includes('кинопоиск')) {
-    return target ? `https://www.kinopoisk.ru/index.php?kp_query=${encodeURIComponent(target)}` : 'https://www.kinopoisk.ru';
-  }
-  if (lowerSource.includes('wiki')) {
-    return target ? `https://ru.wikipedia.org/w/index.php?search=${encodeURIComponent(target)}` : 'https://ru.wikipedia.org';
+  // 4. Multilingual Wikipedia search:
+  const wikiLang = currentLang === 'kz' ? 'kk' : currentLang === 'en' ? 'en' : 'ru';
+  const searchTerm = query || source || '';
+  if (searchTerm) {
+    return `https://${wikiLang}.wikipedia.org/w/index.php?search=${encodeURIComponent(searchTerm)}`;
   }
 
-  // 5. Clean query fallback
-  const cleanSource = (source || '')
-    .replace(/^(официальный сайт|официальный портал|архивы|реестр|сайт|официальные данные)\s+/i, '')
-    .trim();
-
-  return `https://www.google.com/search?q=${encodeURIComponent(`${cleanSource} ${target}`.trim())}`;
+  return `https://${wikiLang}.wikipedia.org`;
 }
 
 interface FactCheckingSectionProps {
@@ -172,12 +237,7 @@ export function FactCheckingSection({
   const t = TRANSLATIONS[currentLang]?.factChecking || TRANSLATIONS.ru.factChecking;
 
   // Internal state fallback if not controlled from page
-  const [internalDecisions, setInternalDecisions] = useState<Record<string, FactStatus>>({
-    'fc-1': 'approved',
-    'fc-2': 'pending',
-    'fc-3': 'pending',
-    'fc-4': 'pending'
-  });
+  const [internalDecisions, setInternalDecisions] = useState<Record<string, FactStatus>>({});
 
   const decisions = externalDecisions || internalDecisions;
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
@@ -511,11 +571,13 @@ export function FactCheckingSection({
 
             const tCard = card.translations?.[currentLang];
             const speaker = tCard?.speaker || card.speaker;
-            const textBefore = tCard?.textBefore ?? card.textBefore;
+            const rawTextBefore = tCard?.textBefore ?? card.textBefore;
+            const rawTextAfter = tCard?.textAfter ?? card.textAfter;
+            const textBefore = clampQuoteContext(rawTextBefore, true, 16);
+            const textAfter = clampQuoteContext(rawTextAfter, false, 16);
             const underlinedPhrase = tCard?.underlinedPhrase ?? card.underlinedPhrase;
             const textMid = tCard?.textMid ?? card.textMid;
             const highlightedFact = tCard?.highlightedFact ?? card.highlightedFact;
-            const textAfter = tCard?.textAfter ?? card.textAfter;
             const factCheckInfo = tCard?.factCheckInfo ?? card.factCheckInfo;
 
             return (
@@ -793,7 +855,9 @@ export function FactCheckingSection({
         const sourceLink = getSourceUrl(
           factCheckInfo.source,
           (factCheckInfo as any).sourceUrl,
-          `${card.speaker || ''} ${highlightedFact || ''} ${factCheckInfo.claimed || ''} ${factCheckInfo.title || ''}`
+          card.searchQuery || highlightedFact,
+          card.sourceDomain,
+          currentLang
         );
         const leftBorderColor = isApproved || isFixed
           ? 'border-l-emerald-400'

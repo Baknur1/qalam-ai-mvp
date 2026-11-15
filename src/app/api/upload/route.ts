@@ -25,11 +25,18 @@ export async function POST(req: NextRequest) {
       else mimeType = 'audio/wav';
     }
 
-    // If Groq key is available and file is audio under 24MB, start background transcription immediately
+    // If Groq key is available and file is audio or video under 24MB, start background transcription immediately
+    // Groq natively accepts mp3, mp4, mpeg, mpga, m4a, wav, webm
     let sttPromise: Promise<{ text: string; segments: import('@/lib/types').TranscriptItem[] }> | undefined;
     const groqKey = process.env.GROQ_API_KEY;
+    const isGroqFormat =
+      mimeType.startsWith('audio/') ||
+      mimeType.includes('mp4') ||
+      mimeType.includes('webm') ||
+      mimeType.includes('mpeg') ||
+      /\.(mp3|mp4|mpeg|mpga|m4a|wav|webm|ogg)$/i.test(file.name);
 
-    if (groqKey && file.size <= 24 * 1024 * 1024 && !mimeType.startsWith('video/')) {
+    if (groqKey && file.size <= 24 * 1024 * 1024 && isGroqFormat) {
       try {
         console.log(`[Pre-Upload] Starting background Groq STT for ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB)...`);
         sttPromise = transcribeWithGroq(buffer, groqKey, file.name, mimeType);

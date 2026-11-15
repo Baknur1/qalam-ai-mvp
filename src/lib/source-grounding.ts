@@ -62,6 +62,27 @@ export function detectQueryLanguage(query: string, preferredLang?: OutputLanguag
   return 'en';
 }
 
+function isWikipediaResultRelevant(query: string, title: string): boolean {
+  if (!query || !title) return false;
+  const qClean = query.toLowerCase().replace(/[^a-zа-яёәіңғүұқөһ0-9\s]/gi, ' ').trim();
+  const tClean = title.toLowerCase().replace(/[^a-zа-яёәіңғүұқөһ0-9\s]/gi, ' ').trim();
+
+  if (tClean.includes(qClean) || qClean.includes(tClean)) return true;
+
+  const qWords = qClean.split(/\s+/).filter(w => w.length >= 3);
+  const tWords = tClean.split(/\s+/).filter(w => w.length >= 3);
+
+  for (const qw of qWords) {
+    const stem = qw.slice(0, Math.min(qw.length, 4));
+    for (const tw of tWords) {
+      if (tw.startsWith(stem) || tw.includes(stem)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 async function fetchWikipediaOpensearch(
   query: string,
   lang: 'kk' | 'ru' | 'en'
@@ -78,7 +99,8 @@ async function fetchWikipediaOpensearch(
     const title = data[1]?.[0];
     const url = data[3]?.[0];
 
-    if (title && url) {
+    // Проверяем, что найденная статья действительно релевантна запросу, а не случайное совпадение по префиксу
+    if (title && url && isWikipediaResultRelevant(query, title)) {
       return { title, url };
     }
     return null;
@@ -262,7 +284,23 @@ export async function enrichFactSource(
     return item;
   }
 
-  // 4. Мультиязычная Wikipedia OpenSearch API (kk / ru / en):
+  // 4. Точечный поиск по доменам Казахстана и целевым ресурсам с операторами (если домен указан и не wiki):
+  const isNonWikiDomain = item.sourceDomain && !item.sourceDomain.toLowerCase().includes('wiki');
+  if (isNonWikiDomain) {
+    const targetedUrl = buildTargetedDomainUrl(searchQuery, item.sourceDomain, item.factCategory);
+    if (targetedUrl) {
+      return {
+        ...item,
+        factCheckInfo: {
+          ...item.factCheckInfo,
+          source: item.sourceDomain || sourceName,
+          sourceUrl: targetedUrl
+        }
+      };
+    }
+  }
+
+  // 5. Мультиязычная Wikipedia OpenSearch API (kk / ru / en):
   const searchCandidates = [
     searchQuery,
     highlighted.trim(),
@@ -277,22 +315,22 @@ export async function enrichFactSource(
         ...item,
         factCheckInfo: {
           ...item.factCheckInfo,
-          source: sourceName.toLowerCase().includes('wiki') ? 'Wikipedia' : sourceName,
+          source: 'Wikipedia',
           sourceUrl: wiki.url
         }
       };
     }
   }
 
-  // 5. Точечный поиск по доменам Казахстана и целевым ресурсам с операторами:
-  const targetedUrl = buildTargetedDomainUrl(searchQuery, item.sourceDomain, item.factCategory);
-  if (targetedUrl) {
+  // 6. Общий поиск по целевому домену через Google site: (если не сработала Wikipedia)
+  const fallbackTargetedUrl = buildTargetedDomainUrl(searchQuery, item.sourceDomain, item.factCategory);
+  if (fallbackTargetedUrl) {
     return {
       ...item,
       factCheckInfo: {
         ...item.factCheckInfo,
         source: item.sourceDomain || sourceName,
-        sourceUrl: targetedUrl
+        sourceUrl: fallbackTargetedUrl
       }
     };
   }

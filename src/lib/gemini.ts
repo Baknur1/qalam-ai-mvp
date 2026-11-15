@@ -10,12 +10,11 @@ export interface GeminiProcessResponse {
   outputs: MultilingualOutputs;
 }
 
-// Models ordered by speed and throughput: gemini-2.5-flash produces instant output, followed by gemini-3.5-flash-lite and gemini-3-flash
+// Modern production models: gemini-3.5-flash-lite (fastest, lowest latency), gemini-3.8-flash, and gemini-3.6-flash
 const CANDIDATE_MODELS = [
-  'gemini-2.5-flash',
   'gemini-3.5-flash-lite',
-  'gemini-3-flash-preview',
-  'gemini-3.8-flash'
+  'gemini-3.8-flash',
+  'gemini-3.6-flash'
 ];
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -31,7 +30,7 @@ export function getGenerationConfigForModel(model: string, baseConfig?: Record<s
   // Eliminate thinking latency so streaming begins within < 400ms without reasoning pauses
   if (model.includes('gemini-3')) {
     config.thinkingConfig = { thinkingLevel: 'MINIMAL' };
-  } else if (model.includes('gemini-2.5') || model.includes('gemini-3.5') || model.includes('gemini-3.8')) {
+  } else {
     config.thinkingConfig = { thinkingBudget: 0 };
   }
 
@@ -444,8 +443,99 @@ function repairTruncatedJson(text: string): Record<string, unknown> | null {
   }
 }
 
+function cleanMalformedJsonSyntax(raw: string): string {
+  let res = raw.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+  const jsonMatch = res.match(/\{[\s\S]*\}/);
+  if (jsonMatch) res = jsonMatch[0];
+
+  // 1. Если ключ не имеет значения перед запятой, а следом идет следующий ключ:
+  // например: ':, "nextKey":' или ': , "nextKey":' -> ': "", "nextKey":'
+  res = res.replace(/:\s*,\s*(?="[^"]+"\s*:)/g, ': "", ');
+
+  // 2. Двоеточие с запятой и текстом без открывающей кавычки:
+  // ': , ән айтуғ"' -> ': "ән айтуғ"'
+  res = res.replace(/:\s*,\s*([^"{\[\dntf\-\s][^"]*")/g, ': "$1');
+
+  // 3. Двоеточие с запятой и открывающей кавычкой значения:
+  // ': ,"foo"' -> ': "foo"'
+  res = res.replace(/:\s*,\s*"/g, ': "');
+
+  // 4. Одиночное двоеточие с запятой в конце свойства или перед следующим ключом:
+  // ': ,' -> ': "",'
+  res = res.replace(/:\s*,/g, ': "",');
+
+  // 5. Очистка висячих запятых перед закрывающими фигурными/квадратными скобками:
+  res = res.replace(/,\s*([}\]])/g, '$1');
+
+  return res;
+}
+
+function parseJsonSafely<T = Record<string, unknown>>(raw: string): T {
+  let cleaned = cleanMalformedJsonSyntax(raw);
+
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch (initialErr) {
+    // Экранируем сырые символы переноса строк (\n, \r), табуляции и управляющие символы внутри строк
+    let inString = false;
+    let escaped = false;
+    let fixed = '';
+
+    for (let i = 0; i < cleaned.length; i++) {
+      const ch = cleaned[i];
+      if (escaped) {
+        fixed += ch;
+        escaped = false;
+        continue;
+      }
+      if (ch === '\\') {
+        fixed += ch;
+        escaped = true;
+        continue;
+      }
+      if (ch === '"') {
+        inString = !inString;
+        fixed += ch;
+        continue;
+      }
+      if (inString) {
+        if (ch === '\n') {
+          fixed += '\\n';
+          continue;
+        }
+        if (ch === '\r') {
+          fixed += '\\r';
+          continue;
+        }
+        if (ch === '\t') {
+          fixed += '\\t';
+          continue;
+        }
+        const code = ch.charCodeAt(0);
+        if (code < 32) {
+          fixed += `\\u${code.toString(16).padStart(4, '0')}`;
+          continue;
+        }
+      }
+      fixed += ch;
+    }
+
+    try {
+      return JSON.parse(fixed) as T;
+    } catch {
+      const cleanedAgain = cleanMalformedJsonSyntax(fixed);
+      try {
+        return JSON.parse(cleanedAgain) as T;
+      } catch {
+        const repaired = repairTruncatedJson(cleanedAgain) || repairTruncatedJson(fixed) || repairTruncatedJson(cleaned);
+        if (repaired) return repaired as unknown as T;
+        throw initialErr;
+      }
+    }
+  }
+}
+
 function decodeJsonStringSafe(str: string): string {
-  if (!str) return '';
   const trimmed = str.trim();
   const withQuotes = trimmed.startsWith('"') && trimmed.endsWith('"')
     ? trimmed
@@ -927,6 +1017,7 @@ export async function translateEditorialPackage(
    - Полностью переведи цитату спикера ("textBefore", "highlightedFact", "textAfter") на ${targetLang === 'kz' ? 'казахский' : 'английский'} язык, чтобы фраза звучала естественно и грамотно.
    - Переведи описание проверки ("title", "claimed", "verified", "suggestedFix") на ${targetLang === 'kz' ? 'казахский' : 'английский'} язык.
    - В поле "speaker" сохрани имя человека или переведи роль (например, 'Интервьюер' -> '${targetLang === 'kz' ? 'Сұхбат алушы' : 'Interviewer'}').
+   - СТРОГО: Каждое строковое поле ("textBefore", "highlightedFact", "textAfter") ОБЯЗАНО быть обернуто в двойные кавычки (например: "textAfter": "ән айтуға..."). Категорически запрещено оставлять значения без кавычек или ставить запятую сразу после двоеточия!
 
 ИСХОДНЫЕ ДАННЫЕ:
 Статья (web_article):
@@ -993,7 +1084,7 @@ ${JSON.stringify(factsJson)}
   const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
   if (jsonMatch) cleaned = jsonMatch[0];
 
-  const parsed = JSON.parse(cleaned);
+  const parsed = parseJsonSafely<Record<string, unknown>>(cleaned);
 
   let localizedScript = (parsed.social_script as string) || '';
   let localizedTelegram = (parsed.telegram_post as string) || '';

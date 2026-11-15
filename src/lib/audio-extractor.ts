@@ -17,12 +17,24 @@ export async function extractAudioFromMedia(
     file.type.startsWith('video/') ||
     /\.(mp4|mov|webm|mkv|avi|m4v)$/i.test(file.name);
 
-  // If it's already an audio file and smaller than 24MB, keep as is
-  if (!isVideo && file.size <= 24 * 1024 * 1024) {
+  const isVercel = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
+  const isWav = /\.wav$/i.test(file.name);
+  const isCompressedAudio = /\.(m4a|mp3|aac|ogg|webm|opus)$/i.test(file.name);
+
+  // M4A, MP3, AAC, OGG уже аппаратно сжаты кодеками AAC/MP3.
+  // Конвертация сжатого M4A/MP3 в WAV раздувает размер в 3-5 раз, потому что WAV — это несжатый PCM поток!
+  // Поэтому если это уже сжатое аудио < 24 МБ (или < 4.2 МБ на Vercel), не раздуваем его в WAV:
+  if (!isVideo && isCompressedAudio) {
+    if (!isVercel && file.size <= 24 * 1024 * 1024) return file;
+    if (isVercel && file.size <= 4.2 * 1024 * 1024) return file;
+  }
+
+  // Если это уже легкий WAV (< 3 МБ), тоже оставляем как есть
+  if (!isVideo && isWav && file.size <= 3 * 1024 * 1024) {
     return file;
   }
 
-  // If it's video or an oversized audio file, transcode to 16kHz mono WAV
+  // Если это видео, тяжелый WAV или аудиофайл больше лимита — пережимаем в легковесный 16kHz моно-звук
   if (typeof window === 'undefined') {
     return file;
   }
@@ -56,12 +68,14 @@ export async function extractAudioFromMedia(
 
     onProgress?.('encoding');
 
-    // Dynamic target sample rate: keep resulting WAV guaranteed <= 20 MB (under Groq's 25 MB limit)
-    // 16-bit mono PCM is 2 bytes per sample. 20 MB = 10,000,000 samples.
+    // Dynamic target sample rate:
+    // На Vercel лимит запроса 4.5 МБ -> целимся в 4.1 МБ.
+    // На локале/VPS лимит Groq 25 МБ -> целимся в 20 МБ.
+    const maxSafeBytes = isVercel ? 4.1 * 1024 * 1024 : 20 * 1024 * 1024;
+    const maxSafeSamples = Math.floor(maxSafeBytes / 2);
     const duration = Math.max(1, audioBuffer.duration);
-    const maxSafeSamples = 10_000_000;
     const calculatedRate = Math.floor(maxSafeSamples / duration);
-    // Clamp between 8000 Hz (telephony standard) and 16000 Hz (optimal speech recognition)
+    // Clamp between 8000 Hz (стандарт телефонии/речи) и 16000 Hz (нативный оптимум Whisper)
     const targetSampleRate = Math.max(8000, Math.min(16000, calculatedRate));
     const targetLength = Math.ceil(duration * targetSampleRate);
 
@@ -77,11 +91,11 @@ export async function extractAudioFromMedia(
     onProgress?.('ready');
 
     const cleanBaseName = file.name.replace(/\.[^/.]+$/, '');
-    const audioFileName = `${cleanBaseName}_audio.wav`;
+    const audioFileName = isVideo ? `${cleanBaseName}_audio.wav` : `${cleanBaseName}_opt.wav`;
 
     return new File([wavBlob], audioFileName, { type: 'audio/wav' });
   } catch (err) {
-    console.warn('[AudioExtractor] Client extraction failed, using original file:', err);
+    console.warn('[AudioExtractor] Client extraction/compression failed, using original file:', err);
     return file;
   }
 }

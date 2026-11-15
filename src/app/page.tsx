@@ -365,6 +365,11 @@ export default function Home() {
         });
 
         if (!res.ok) {
+          if (res.status === 413) {
+            throw new Error(
+              'Файл превышает лимит хостинга Vercel (максимум 4.5 МБ на запрос). Для тяжелых видеофайлов используйте локальную версию приложения или загружайте сжатое аудио (MP3/M4A).'
+            );
+          }
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.error || alerts.serverError(res.status));
         }

@@ -37,8 +37,7 @@ export async function transcribeWithGroq(
     file: uploadableFile as never,
     model: 'whisper-large-v3-turbo',
     response_format: 'verbose_json',
-    temperature: 0.0,
-    prompt: 'Брифинг, интервью на казахском, русском и английском языках, терминология: теңге, министрлік, Астана, Қазақстан.'
+    temperature: 0.0
   });
 
   const fullText = transcription.text;

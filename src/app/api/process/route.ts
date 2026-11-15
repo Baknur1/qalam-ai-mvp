@@ -15,6 +15,9 @@ export const maxDuration = 300;
 
 function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage = 'Operation timed out'): Promise<T> {
   let timer: NodeJS.Timeout | null = null;
+  // Предотвращаем UnhandledPromiseRejection, если промис завершится ошибкой уже после срабатывания таймера
+  promise.catch(() => { });
+
   const timeoutPromise = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new Error(errorMessage)), ms);
   });
@@ -153,34 +156,51 @@ export async function POST(req: NextRequest) {
             if (audioBuffer && audioBuffer.length > 0) {
               let groqSuccess = false;
               if (precomputedStt) {
-                rawTranscript = precomputedStt.text;
                 transcriptSegments = precomputedStt.segments;
+                rawTranscript = transcriptSegments.length > 0
+                  ? transcriptSegments.map(s => `[${s.timestamp}] ${s.speaker}: ${s.text}`).join('\n')
+                  : precomputedStt.text;
                 groqSuccess = true;
               } else if (cachedSttPromise) {
                 try {
                   controller.enqueue(sseChunk('step', { step: 1, message: 'Завершение быстрой транскрибации речи...' }));
-                  const sttResult = await withTimeout(cachedSttPromise, 45000, 'Pre-STT timeout');
-                  rawTranscript = sttResult.text;
+                  const sttResult = await withTimeout(cachedSttPromise, 60000, 'Pre-STT timeout');
                   transcriptSegments = sttResult.segments;
+                  rawTranscript = transcriptSegments.length > 0
+                    ? transcriptSegments.map(s => `[${s.timestamp}] ${s.speaker}: ${s.text}`).join('\n')
+                    : sttResult.text;
                   groqSuccess = true;
                 } catch (e) {
-                  console.warn('[Process] Precomputed STT wait skipped:', e);
+                  const msg = e instanceof Error ? e.message : String(e);
+                  console.warn('[Process] Precomputed STT skipped (' + msg + '), proceeding to Gemini multimodal pipeline...');
                 }
               }
 
-              if (!groqSuccess && effectiveGroqKey && fileSize <= 24 * 1024 * 1024 && !mimeType.startsWith('video/')) {
+              // Запускаем Groq только если файл не отправлялся на пред-транскрибацию ранее
+              // Groq нативно поддерживает mp3, mp4, mpeg, mpga, m4a, wav, webm до 25 МБ
+              const isGroqFormat =
+                mimeType.startsWith('audio/') ||
+                mimeType.includes('mp4') ||
+                mimeType.includes('webm') ||
+                mimeType.includes('mpeg') ||
+                /\.(mp3|mp4|mpeg|mpga|m4a|wav|webm|ogg)$/i.test(fileName || '');
+
+              if (!groqSuccess && !cachedSttPromise && effectiveGroqKey && fileSize <= 24 * 1024 * 1024 && isGroqFormat) {
                 try {
                   controller.enqueue(sseChunk('step', { step: 1, message: 'Быстрая транскрибация речи через Groq...' }));
                   const sttResult = await withTimeout(
                     transcribeWithGroq(audioBuffer, effectiveGroqKey, fileName || 'audio.wav', mimeType),
-                    45000,
+                    60000,
                     'Groq timeout'
                   );
-                  rawTranscript = sttResult.text;
                   transcriptSegments = sttResult.segments;
+                  rawTranscript = transcriptSegments.length > 0
+                    ? transcriptSegments.map(s => `[${s.timestamp}] ${s.speaker}: ${s.text}`).join('\n')
+                    : sttResult.text;
                   groqSuccess = true;
                 } catch (groqErr) {
-                  console.warn('[Process Stream] Groq STT fallback to Gemini directly:', groqErr);
+                  const msg = groqErr instanceof Error ? groqErr.message : String(groqErr);
+                  console.warn('[Process Stream] Groq STT fallback to Gemini directly (' + msg + ')');
                 }
               }
 
@@ -272,14 +292,14 @@ export async function POST(req: NextRequest) {
                 transcriptSegments.length > 0
                   ? transcriptSegments
                   : [
-                      {
-                        id: 't-1',
-                        timestamp: '00:00',
-                        speaker: 'Спикер',
-                        text: rawTranscript,
-                        flagIds: []
-                      }
-                    ],
+                    {
+                      id: 't-1',
+                      timestamp: '00:00',
+                      speaker: 'Спикер',
+                      text: rawTranscript,
+                      flagIds: []
+                    }
+                  ],
               flags: geminiResult.flags,
               factCheckItems: enrichedFacts,
               outputs: geminiResult.outputs,
@@ -328,21 +348,34 @@ export async function POST(req: NextRequest) {
       let groqSuccess = false;
 
       if (precomputedStt) {
-        rawTranscript = precomputedStt.text;
         transcriptSegments = precomputedStt.segments;
+        rawTranscript = transcriptSegments.length > 0
+          ? transcriptSegments.map(s => `[${s.timestamp}] ${s.speaker}: ${s.text}`).join('\n')
+          : precomputedStt.text;
         groqSuccess = true;
-      } else if (effectiveGroqKey && fileSize <= 24 * 1024 * 1024 && !mimeType.startsWith('video/')) {
+      } else if (
+        effectiveGroqKey &&
+        fileSize <= 24 * 1024 * 1024 &&
+        (mimeType.startsWith('audio/') ||
+          mimeType.includes('mp4') ||
+          mimeType.includes('webm') ||
+          mimeType.includes('mpeg') ||
+          /\.(mp3|mp4|mpeg|mpga|m4a|wav|webm|ogg)$/i.test(fileName || ''))
+      ) {
         try {
           const sttResult = await withTimeout(
             transcribeWithGroq(audioBuffer, effectiveGroqKey, fileName || 'audio.wav', mimeType),
-            45000,
+            60000,
             'Groq timeout'
           );
-          rawTranscript = sttResult.text;
           transcriptSegments = sttResult.segments;
+          rawTranscript = transcriptSegments.length > 0
+            ? transcriptSegments.map(s => `[${s.timestamp}] ${s.speaker}: ${s.text}`).join('\n')
+            : sttResult.text;
           groqSuccess = true;
         } catch (groqErr) {
-          console.warn('[Audio Pipeline] Groq STT unavailable or timed out, using Gemini directly.', groqErr);
+          const msg = groqErr instanceof Error ? groqErr.message : String(groqErr);
+          console.warn('[Audio Pipeline] Groq STT fallback to Gemini (' + msg + ')');
         }
       }
 
@@ -373,14 +406,14 @@ export async function POST(req: NextRequest) {
           transcriptSegments.length > 0
             ? transcriptSegments
             : [
-                {
-                  id: 't-1',
-                  timestamp: '00:00',
-                  speaker: 'Спикер',
-                  text: rawTranscript,
-                  flagIds: []
-                }
-              ],
+              {
+                id: 't-1',
+                timestamp: '00:00',
+                speaker: 'Спикер',
+                text: rawTranscript,
+                flagIds: []
+              }
+            ],
         flags: geminiResult.flags,
         factCheckItems: enrichedFacts,
         outputs: geminiResult.outputs,
@@ -430,14 +463,14 @@ export async function POST(req: NextRequest) {
           transcriptSegments.length > 0
             ? transcriptSegments
             : [
-                {
-                  id: 't-1',
-                  timestamp: '00:00',
-                  speaker: 'Спикер',
-                  text: sourceText,
-                  flagIds: []
-                }
-              ],
+              {
+                id: 't-1',
+                timestamp: '00:00',
+                speaker: 'Спикер',
+                text: sourceText,
+                flagIds: []
+              }
+            ],
         flags: geminiResult.flags,
         factCheckItems: enrichedFacts,
         outputs: geminiResult.outputs,

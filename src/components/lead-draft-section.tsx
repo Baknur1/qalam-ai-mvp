@@ -23,7 +23,7 @@ const mdParser = new MarkdownIt({
   html: true,
   linkify: true,
   typographer: true,
-  breaks: true
+  breaks: false
 });
 
 const factHighlightPluginKey = new PluginKey('factHighlightPlugin');
@@ -261,9 +261,20 @@ export function LeadDraftSection({
 
   // Sync draftText with editor when props change (language switch or demo finish or auto-fix applied)
   useEffect(() => {
-    if (draftText && !isStreaming && editor) {
+    if (draftText && !isStreaming && editor && !editor.isDestroyed) {
+      // Если редактор в фокусе пользователя, не сбрасываем контент и позицию курсора
+      if (editor.isFocused) {
+        return;
+      }
+
+      // @ts-expect-error tiptap-markdown storage
+      const currentMd = editor.storage?.markdown?.getMarkdown?.() || editor.getText();
       const cleanDraft = normalizeMarkdownContent(draftText);
-      editor.commands.setContent(mdParser.render(cleanDraft));
+
+      // Перезаписываем только если контент действительно отличается от текущего в редакторе
+      if (currentMd.trim() !== cleanDraft.trim()) {
+        editor.commands.setContent(mdParser.render(cleanDraft));
+      }
     }
   }, [draftText, isStreaming, editor]);
 
@@ -373,7 +384,7 @@ export function LeadDraftSection({
 
           html = html.replace(
             regex,
-            `<span data-fact-id="${card.id}" class="inline-block cursor-pointer transition-all ${styleClasses}">$1</span>`
+            `<span data-fact-id="${card.id}" class="inline cursor-pointer transition-all ${styleClasses}">$1</span>`
           );
           break; // Match first occurrence for this card
         }

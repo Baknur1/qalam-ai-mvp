@@ -131,14 +131,29 @@ export function HeroUpload({
     const abortCtrl = new AbortController();
     abortControllerRef.current = abortCtrl;
 
+    const isVercel = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
     const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm|mkv|avi|m4v)$/i.test(file.name);
-    const isHeavyAudio = file.size > 22 * 1024 * 1024;
-    setUploadState(isVideo || isHeavyAudio ? 'extracting' : 'uploading');
+    const isWav = /\.wav$/i.test(file.name);
+    // M4A, MP3, AAC, OGG уже являются высокоэффективно сжатыми аудиоформатами (в 5-10 раз плотнее несжатого WAV).
+    // Groq Whisper нативно принимает M4A/MP3 до 24 МБ. Если пережимать 10 МБ M4A в WAV, он наоборот раздуется до 20 МБ!
+    // Поэтому пережимаем только:
+    // 1) Видеофайлы (извлекаем аудиодорожку)
+    // 2) Несжатый WAV > 3 МБ (WAV в моно 16кГц уменьшается в 3-5 раз)
+    // 3) Любое аудио > 23 МБ (чтобы гарантированно уместиться в 24 МБ лимит Groq)
+    // 4) На Vercel: любой файл > 4.2 МБ (из-за лимита 4.5 МБ Vercel)
+    const isCompressedAudio = /\.(m4a|mp3|aac|ogg|webm|opus)$/i.test(file.name);
+    const isOversizedForGroq = file.size > 23 * 1024 * 1024;
+    const isOversizedForVercel = isVercel && file.size > 4.2 * 1024 * 1024;
+    const isHeavyWav = isWav && file.size > 3 * 1024 * 1024;
+
+    const needsOptimization = isVideo || isHeavyWav || isOversizedForGroq || (isOversizedForVercel && !isCompressedAudio);
+
+    setUploadState(needsOptimization ? 'extracting' : 'uploading');
 
     const uploadPromise = (async () => {
       try {
         let fileToUpload = file;
-        if (isVideo || isHeavyAudio) {
+        if (needsOptimization) {
           setUploadProgress(20);
           fileToUpload = await extractAudioFromMedia(file, (stage) => {
             if (stage === 'decoding') setUploadProgress(25);
@@ -385,7 +400,11 @@ export function HeroUpload({
                   {uploadState === 'extracting' ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
-                      <span className="text-amber-300">{t.extractingAudio || 'Извлечение аудио...'}</span>
+                      <span className="text-amber-300">
+                        {selectedFile && (selectedFile.type.startsWith('video/') || /\.(mp4|mov|webm|mkv|avi|m4v)$/i.test(selectedFile.name))
+                          ? (t.extractingAudio || 'Извлечение аудио...')
+                          : 'Оптимизация звука...'}
+                      </span>
                     </>
                   ) : uploadState === 'uploading' ? (
                     <>

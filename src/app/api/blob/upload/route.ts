@@ -25,6 +25,8 @@ export async function POST(request: Request): Promise<NextResponse> {
             'video/quicktime'
           ],
           maximumSizeInBytes: 500 * 1024 * 1024, // 500 MB
+          allowOverwrite: true,
+          addRandomSuffix: true,
           tokenPayload: JSON.stringify({ pathname })
         };
       },

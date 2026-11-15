@@ -174,12 +174,14 @@ export function HeroUpload({
         // На Vercel при файлах > 4 МБ используем direct upload в Vercel Blob
         if (fileToUpload.size > 4 * 1024 * 1024) {
           try {
-            // Безопасное имя файла без спецсимволов для URL
-            const cleanSafeName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-            const blobResult = await vercelBlobUpload(cleanSafeName, fileToUpload, {
+            // Генерируем уникальное имя файла с таймстемпом на клиенте, чтобы имя ВСЕГДА было уникальным
+            const ext = fileToUpload.name.includes('.') ? fileToUpload.name.split('.').pop() : 'mp4';
+            const base = fileToUpload.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+            const uniquePathname = `${base}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
+
+            const blobResult = await vercelBlobUpload(uniquePathname, fileToUpload, {
               access: 'private',
-              handleUploadUrl: '/api/blob/upload',
-              addRandomSuffix: true
+              handleUploadUrl: '/api/blob/upload'
             });
             if (blobResult && blobResult.url) {
               setBlobUrl(blobResult.url);
